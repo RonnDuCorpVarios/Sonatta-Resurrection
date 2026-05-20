@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+<title>Sonatta — Tu música en las nubes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Playfair+Display:wght@700;800&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+
+<!-- ═══════════════════════════════════════════
+     FIREBASE SDK (v10 modular via CDN)
+═══════════════════════════════════════════ -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  // ═══════════════════════════════════════════
+  // CONFIGURACIÓN FIREBASE - SONATTA
+  // ═══════════════════════════════════════════
+  const firebaseConfig = {
+    apiKey: "AIzaSyBXgHPxTfTJFkpMc_S7jZpxTMxr4yhxfuQ",
+    authDomain: "sonatta-resurrection.firebaseapp.com",
+    projectId: "sonatta-resurrection",
+    storageBucket: "sonatta-resurrection.firebasestorage.app",
+    messagingSenderId: "649651267267",
+    appId: "1:649651267267:web:0e56785c674170fccb2476"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const googleProvider = new GoogleAuthProvider();
+
+  // ═══════════════════════════════════════════
+  // ESTADO GLOBAL DE LA APP
+  // ═══════════════════════════════════════════
+  window.SonattaApp = {
+    auth, db, googleProvider,
+    currentUser: null,
+    songs: [],
+    playlists: [],
+    currentSong: null,
+    currentIndex: -1,
+    isPlaying: false,
+    queue: [],
+    shuffle: false,
+    repeat: 'none', // 'none' | 'one' | 'all'
+    audio: new Audio(),
+    activeView: 'home',
+    // Helpers Firebase
+    signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
+    signUp: (email, pass) => createUserWithEmailAndPassword(auth, email, pass),
+    signOut: () => signOut(auth),
+    signInGoogle: () => signInWithPopup(auth, googleProvider),
+    updateUserProfile: (data) => updateProfile(auth.currentUser, data),
+    // Firestore helpers
+    saveDoc: (col, id, data) => setDoc(doc(db, col, id), data, { merge: true }),
+    getDoc: (col, id) => getDoc(doc(db, col, id)),
+    addDoc: (col, data) => addDoc(collection(db, col), data),
+    getDocs: (col) => getDocs(collection(db, col)),
+    deleteDoc: (col, id) => deleteDoc(doc(db, col, id)),
+    updateDoc: (col, id, data) => updateDoc(doc(db, col, id), data),
+    query, where, orderBy, collection, doc,
+  };
+
+  // ═══════════════════════════════════════════
+  // OBSERVER DE AUTH — controla qué pantalla se ve
+  // ═══════════════════════════════════════════
+  // Exponer showScreen para que el módulo pueda usarla
+  window.showScreen = function(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const screen = document.getElementById(id);
+    if (screen) screen.classList.add('active');
+  };
+
+  onAuthStateChanged(auth, (user) => {
+    window.SonattaApp.currentUser = user;
+    if (user) {
+      showScreen('homeScreen');
+      // Esperar a que el DOM y SonattaUI estén listos
+      const tryLogin = () => {
+        if (window.SonattaUI && window.SonattaUI.onUserLogin) {
+          window.SonattaUI.onUserLogin(user);
+        } else {
+          setTimeout(tryLogin, 100);
+        }
+      };
+      tryLogin();
+    } else {
+      showScreen('welcomeScreen');
+    }
+  });
+
+  window.firebaseReady = true;
+  document.dispatchEvent(new Event('firebaseReady'));
+</script>
+
+<style>
+/* ════════════════════════════════════════════════
+   VARIABLES Y RESET
+════════════════════════════════════════════════ */
+:root {
+  --bg: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #1a1a24;
+  --bg4: #22222f;
+  --border: #2a2a3a;
+  --accent: #7c5cfc;
+  --accent2: #a78bfa;
+  --accent3: #38bdf8;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --text: #f0f0ff;
+  --text2: #a0a0c0;
+  --text3: #606080;
+  --card: #13131c;
+  --player-h: 90px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  height: 100%;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
+
+/* ════════════════════════════════════════════════
+   SISTEMA DE PANTALLAS
+════════════════════════════════════════════════ */
+.screen {
+  display: none;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  overflow: hidden;
+}
+.screen.active { display: flex; }
+
+/* ════════════════════════════════════════════════
+   ANIMACIONES GLOBALES
+════════════════════════════════════════════════ */
+@keyframes float-up {
+  0%   { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212,175,55,0.4); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 16px rgba(212,175,55,0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(212,175,55,0); }
+}
+@keyframes eq-bar {
+  0%,100% { transform: scaleY(0.3); }
+  50%     { transform: scaleY(1); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes grain {
+  0%,100% { transform: translate(0,0); }
+  10%     { transform: translate(-2%,-3%); }
+  30%     { transform: translate(2%,1%); }
+  50%     { transform: translate(-1%,3%); }
+  70%     { transform: translate(3%,-2%); }
+  90%     { transform: translate(-3%,2%); }
+}
+@keyframes orb1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%     { transform: translate(30px,-20px) scale(1.08); }
+}
+@keyframes orb2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%     { transform: translate(-20px,25px) scale(0.94); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .ws-grain { animation: none !important; display: none !important; }
+  .ws-orb { animation: none !important; }
+}
+
+/* ════════════════════════════════════════════════
+   PANTALLA BIENVENIDA — estilo Sonatta original
+════════════════════════════════════════════════ */
+#welcomeScreen {
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: radial-gradient(ellipse at 30% 20%, #1a120a 0%, #0d0d0d 40%, #090912 100%);
+  position: relative;
+  overflow: hidden;
+  padding: 0 0 52px;
+}
+
+.ws-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.ws-orb1 {
+  position: absolute; width: 500px; height: 500px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(180,100,20,0.18) 0%, transparent 65%);
+  top: -150px; left: -150px; animation: orb1 10s ease-in-out infinite;
+}
+.ws-orb2 {
+  position: absolute; width: 400px; height: 400px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(60,40,120,0.2) 0%, transparent 65%);
+  bottom: -100px; right: -100px; animation: orb2 13s ease-in-out infinite;
+}
+.ws-orb3 {
+  position: absolute; width: 300px; height: 300px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(212,140,40,0.08) 0%, transparent 70%);
+  top: 45%; left: 50%; animation: orb1 16s ease-in-out infinite reverse;
+}
+.ws-grain {
+  position: absolute; inset: -50%; width: 200%; height: 200%;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  animation: grain 0.6s steps(1) infinite; pointer-events: none;
+}
+
+.welcome-top {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  flex: 1; position: relative; z-index: 1;
+  padding: 0 30px; padding-top: 20px;
+}
+
+/* Logo con clave musical SVG igual al original */
+.ws-logo-wrap {
+  position: relative; margin-bottom: 28px;
+  animation: float-up 0.9s cubic-bezier(0.22,1,0.36,1) both;
+}
+.ws-logo-ring {
+  width: 110px; height: 110px; border-radius: 50%;
+  border: 1.5px solid rgba(212,160,40,0.6);
+  display: flex; align-items: center; justify-content: center;
+  animation: pulse-ring 3s ease-in-out infinite;
+  position: relative;
+}
+/* segundo anillo exterior sutil */
+.ws-logo-ring::before {
+  content: '';
+  position: absolute; inset: -10px; border-radius: 50%;
+  border: 1px solid rgba(212,160,40,0.2);
+}
+.ws-logo-inner {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #2a1f12, #1a1510);
+  border: 1px solid rgba(212,160,40,0.3);
+  display: flex; align-items: center; justify-content: center;
+}
+/* barras de eq debajo del logo */
+.ws-eq {
+  position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: flex-end; gap: 3px;
+}
+.ws-eq span {
+  display: block; width: 3px; border-radius: 2px;
+  background: linear-gradient(to top, #d4a028, #f0c060);
+  transform-origin: bottom; opacity: 0.8;
+}
+.ws-eq span:nth-child(1) { height: 6px;  animation: eq-bar 1.1s ease-in-out infinite; }
+.ws-eq span:nth-child(2) { height: 10px; animation: eq-bar 0.75s ease-in-out infinite 0.1s; }
+.ws-eq span:nth-child(3) { height: 8px;  animation: eq-bar 1.3s ease-in-out infinite 0.2s; }
+.ws-eq span:nth-child(4) { height: 12px; animation: eq-bar 0.9s ease-in-out infinite 0.05s; }
+.ws-eq span:nth-child(5) { height: 7px;  animation: eq-bar 1.1s ease-in-out infinite 0.3s; }
+.ws-eq span:nth-child(6) { height: 9px;  animation: eq-bar 0.85s ease-in-out infinite 0.15s; }
+
+.ws-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.8rem, 10vw, 4.2rem);
+  font-weight: 700; letter-spacing: 0.04em;
+  line-height: 1; margin-bottom: 10px; margin-top: 22px;
+  animation: float-up 0.9s cubic-bezier(0.22,1,0.36,1) 0.1s both;
+  background: linear-gradient(135deg, #d4a028 0%, #f0c060 40%, #c8720a 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.ws-subtitle {
+  font-family: 'DM Sans', sans-serif; font-size: 0.78rem;
+  color: var(--text3); letter-spacing: 0.22em; text-transform: uppercase;
+  margin-bottom: 28px;
+  animation: float-up 0.9s cubic-bezier(0.22,1,0.36,1) 0.2s both;
+}
+/* chips Google Drive / OneDrive / Dropbox */
+.ws-clouds {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  margin-bottom: 0px;
+  animation: float-up 0.9s cubic-bezier(0.22,1,0.36,1) 0.3s both;
+}
+.ws-cloud-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 100px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.75rem; color: var(--text2);
+}
+.ws-cloud-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.dot-gdrive { background: #4285f4; }
+.dot-onedrive { background: #0078d4; }
+.dot-dropbox { background: #0061fe; }
+
+.welcome-bottom {
+  width: 100%; padding: 0 24px;
+  position: relative; z-index: 1;
+  animation: float-up 0.9s cubic-bezier(0.22,1,0.36,1) 0.4s both;
+}
+.ws-btn-primary {
+  width: 100%; padding: 18px;
+  background: linear-gradient(135deg, #d4a028, #c8720a);
+  border: none; border-radius: 14px; color: #fff;
+  font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.1em; text-transform: uppercase;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 8px 30px rgba(212,160,40,0.3);
+}
+.ws-btn-primary:active { transform: scale(0.98); }
+.ws-btn-secondary {
+  width: 100%; padding: 16px; margin-top: 10px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 14px; color: var(--text2);
+  font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700;
+  cursor: pointer; letter-spacing: 0.1em; text-transform: uppercase;
+  transition: border-color 0.2s, color 0.2s;
+}
+.ws-btn-secondary:hover { border-color: rgba(212,160,40,0.5); color: var(--text); }
+.ws-footer {
+  text-align: center; margin-top: 18px;
+  font-size: 0.7rem; color: var(--text3);
+}
+
+/* ════════════════════════════════════════════════
+   PANTALLAS AUTH (LOGIN / REGISTRO)
+════════════════════════════════════════════════ */
+#loginScreen, #registerScreen {
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  background: #07070e;
+  padding: 24px 28px;
+}
+
+.auth-back {
+  position: absolute; top: 20px; left: 20px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; cursor: pointer; color: var(--text2);
+  transition: color 0.2s;
+}
+.auth-back:hover { color: var(--text); }
+
+.auth-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.8rem; font-weight: 300; letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.auth-logo span {
+  background: linear-gradient(135deg, #d4af37, #f0d060);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.auth-subtitle {
+  font-size: 0.8rem; color: var(--text3);
+  margin-bottom: 36px; text-align: center;
+}
+
+.auth-form { width: 100%; max-width: 380px; }
+.auth-field { margin-bottom: 14px; }
+.auth-label {
+  display: block; font-size: 0.72rem; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px;
+}
+.auth-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 12px; padding: 13px 16px; color: var(--text);
+  font-size: 0.95rem; font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color 0.2s;
+}
+.auth-input:focus { border-color: var(--accent); }
+.auth-input::placeholder { color: var(--text3); }
+
+.auth-btn {
+  width: 100%; padding: 15px; margin-top: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none; border-radius: 12px; color: white;
+  font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.auth-btn:hover { opacity: 0.9; }
+.auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.auth-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 18px 0; color: var(--text3); font-size: 0.78rem;
+}
+.auth-divider::before, .auth-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.auth-google {
+  width: 100%; padding: 13px; display: flex; align-items: center;
+  justify-content: center; gap: 10px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 12px; color: var(--text2);
+  font-family: 'Syne', sans-serif; font-size: 0.88rem; font-weight: 600;
+  cursor: pointer; transition: border-color 0.2s, color 0.2s;
+}
+.auth-google:hover { border-color: var(--accent); color: var(--text); }
+
+.auth-switch {
+  text-align: center; margin-top: 20px;
+  font-size: 0.82rem; color: var(--text3);
+}
+.auth-switch a {
+  color: var(--accent2); text-decoration: none; font-weight: 600;
+}
+
+.auth-error {
+  background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 14px;
+  font-size: 0.82rem; color: var(--red); display: none;
+}
+.auth-error.visible { display: block; }
+
+/* ════════════════════════════════════════════════
+   LAYOUT PRINCIPAL (HOME, CLOUDS, PLAYLISTS, SETTINGS)
+════════════════════════════════════════════════ */
+#homeScreen, #cloudsScreen, #playlistsScreen, #settingsScreen {
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* NAV BOTTOM */
+.nav-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 70px; background: rgba(10,10,15,0.95);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-around;
+  padding: 0 8px; z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 16px; border-radius: 12px; cursor: pointer;
+  transition: all 0.2s; color: var(--text3); flex: 1;
+  border: none; background: transparent;
+}
+.nav-item.active { color: var(--accent2); }
+.nav-item svg { width: 22px; height: 22px; }
+.nav-label { font-size: 0.65rem; font-family: 'Syne', sans-serif; font-weight: 600; }
+
+/* CONTENT AREA */
+.content-area {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding-bottom: calc(var(--player-h) + 70px + 12px);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.content-area::-webkit-scrollbar { display: none; }
+
+/* HEADER */
+.screen-header {
+  padding: 56px 20px 16px;
+  position: sticky; top: 0; z-index: 50;
+  background: linear-gradient(to bottom, var(--bg) 70%, transparent);
+}
+.screen-header h2 {
+  font-size: 1.5rem; font-weight: 700;
+}
+.screen-header p { font-size: 0.82rem; color: var(--text3); margin-top: 3px; }
+
+/* ════════════════════════════════════════════════
+   MINI PLAYER
+════════════════════════════════════════════════ */
+#miniPlayer {
+  position: absolute;
+  bottom: 70px; left: 8px; right: 8px;
+  height: var(--player-h);
+  background: rgba(19,19,28,0.95);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border); border-radius: 18px;
+  display: none; align-items: center; gap: 12px;
+  padding: 0 16px; z-index: 90;
+  cursor: pointer;
+}
+#miniPlayer.visible { display: flex; }
+
+.mini-cover {
+  width: 54px; height: 54px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--bg3), var(--bg4));
+  overflow: hidden; flex-shrink: 0;
+}
+.mini-cover img { width: 100%; height: 100%; object-fit: cover; }
+.mini-cover .mini-cover-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+}
+
+.mini-info { flex: 1; min-width: 0; }
+.mini-title {
+  font-family: 'Syne', sans-serif; font-size: 0.88rem; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mini-artist { font-size: 0.75rem; color: var(--text3); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.mini-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.mini-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: none; background: transparent; color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1.1rem; transition: color 0.2s;
+}
+.mini-btn:hover { color: var(--text); }
+.mini-play-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--accent); border: none; color: white;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1.1rem; flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+.mini-play-btn:hover { opacity: 0.85; }
+
+.mini-progress {
+  position: absolute; bottom: 0; left: 12px; right: 12px; height: 3px;
+  background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.mini-progress-bar {
+  height: 100%; background: var(--accent);
+  border-radius: 2px; width: 0%; transition: width 0.3s linear;
+}
+
+/* ════════════════════════════════════════════════
+   FULL PLAYER
+════════════════════════════════════════════════ */
+#fullPlayer {
+  position: absolute; inset: 0; z-index: 200;
+  background: var(--bg);
+  flex-direction: column;
+  display: none; overflow: hidden;
+}
+#fullPlayer.visible { display: flex; }
+
+.fp-bg {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at top, rgba(124,92,252,0.15) 0%, transparent 60%);
+}
+.fp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 52px 20px 16px; position: relative; z-index: 1;
+}
+.fp-close {
+  width: 38px; height: 38px; border-radius: 12px;
+  background: var(--bg3); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2); font-size: 1rem;
+}
+.fp-title-top {
+  font-family: 'Syne', sans-serif; font-size: 0.8rem;
+  font-weight: 600; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.fp-cover-wrap {
+  padding: 20px 40px; position: relative; z-index: 1;
+}
+.fp-cover {
+  width: 100%; aspect-ratio: 1;
+  border-radius: 24px; overflow: hidden;
+  background: linear-gradient(135deg, var(--bg3), var(--bg4));
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  position: relative;
+}
+.fp-cover img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: opacity 0.3s;
+}
+.fp-cover-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 5rem;
+  background: linear-gradient(135deg, var(--bg3), var(--bg4));
+}
+
+.fp-info {
+  padding: 0 24px; position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.fp-song-name {
+  font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800;
+  line-height: 1.2;
+}
+.fp-artist-name { font-size: 0.88rem; color: var(--text3); margin-top: 4px; }
+.fp-like-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: transparent; border: none;
+  color: var(--text3); font-size: 1.4rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.2s, transform 0.15s;
+  flex-shrink: 0;
+}
+.fp-like-btn.liked { color: var(--red); }
+.fp-like-btn:active { transform: scale(1.2); }
+
+.fp-progress-wrap {
+  padding: 20px 24px 8px; position: relative; z-index: 1;
+}
+.fp-progress-bar-wrap {
+  height: 4px; background: var(--border); border-radius: 2px;
+  position: relative; cursor: pointer;
+}
+.fp-progress-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 2px; width: 0%; transition: width 0.3s linear;
+  pointer-events: none;
+}
+.fp-progress-thumb {
+  position: absolute; top: 50%; right: calc(100% - var(--progress, 0%));
+  transform: translate(50%, -50%);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  pointer-events: none;
+}
+.fp-times {
+  display: flex; justify-content: space-between; margin-top: 8px;
+  font-size: 0.72rem; color: var(--text3);
+}
+
+.fp-controls {
+  padding: 8px 24px; display: flex; align-items: center;
+  justify-content: space-between; position: relative; z-index: 1;
+}
+.fp-ctrl-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: transparent; border: none; color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1.3rem; transition: color 0.2s;
+}
+.fp-ctrl-btn.active { color: var(--accent2); }
+.fp-ctrl-btn:hover { color: var(--text); }
+.fp-prev-btn, .fp-next-btn {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1.3rem; transition: background 0.2s;
+}
+.fp-prev-btn:hover, .fp-next-btn:hover { background: var(--bg4); }
+.fp-play-btn {
+  width: 68px; height: 68px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none; color: white;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1.8rem;
+  box-shadow: 0 8px 32px rgba(124,92,252,0.4);
+  transition: transform 0.15s;
+}
+.fp-play-btn:active { transform: scale(0.95); }
+
+.fp-extras {
+  padding: 8px 24px 20px; display: flex; align-items: center;
+  justify-content: space-between; position: relative; z-index: 1;
+}
+.fp-vol-wrap { display: flex; align-items: center; gap: 10px; flex: 1; }
+.fp-vol-icon { font-size: 1rem; color: var(--text3); }
+.fp-vol-slider {
+  flex: 1; -webkit-appearance: none; height: 4px;
+  background: var(--border); border-radius: 2px; outline: none;
+  cursor: pointer;
+}
+.fp-vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--accent2); cursor: pointer;
+}
+
+/* ════════════════════════════════════════════════
+   SONG CARD / LIST ITEM
+════════════════════════════════════════════════ */
+.song-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; cursor: pointer; border-radius: 12px;
+  transition: background 0.15s;
+}
+.song-item:hover { background: var(--bg3); }
+.song-item.playing { background: rgba(124,92,252,0.1); }
+
+.song-cover {
+  width: 50px; height: 50px; border-radius: 10px; flex-shrink: 0;
+  background: var(--bg3); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.song-cover img { width: 100%; height: 100%; object-fit: cover; }
+.song-cover-icon { font-size: 1.3rem; }
+
+.song-info { flex: 1; min-width: 0; }
+.song-name {
+  font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.song-meta { font-size: 0.75rem; color: var(--text3); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.song-duration { font-size: 0.75rem; color: var(--text3); flex-shrink: 0; }
+.song-menu-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: transparent; border: none; color: var(--text3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 1.1rem; flex-shrink: 0;
+  transition: color 0.2s, background 0.2s;
+}
+.song-menu-btn:hover { color: var(--text); background: var(--bg4); }
+
+/* ════════════════════════════════════════════════
+   SETTINGS VIEW
+════════════════════════════════════════════════ */
+.cfg-section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.78rem; font-weight: 700;
+  color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+.cfg-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 22px 24px; margin-bottom: 12px;
+}
+.cfg-profile-row { display: flex; align-items: flex-start; gap: 22px; }
+.cfg-avatar-wrap { position: relative; flex-shrink: 0; cursor: pointer; }
+.cfg-avatar {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800;
+  overflow: hidden; border: 2px solid var(--border); transition: border-color 0.2s;
+}
+.cfg-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.cfg-profile-info { flex: 1; min-width: 0; }
+.cfg-field-label {
+  font-size: 0.72rem; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 6px; margin-top: 4px;
+}
+.cfg-field-row { display: flex; gap: 10px; align-items: center; }
+.cfg-input {
+  flex: 1; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 9px; padding: 9px 13px; color: var(--text);
+  font-size: 0.88rem; font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color 0.2s; min-width: 0;
+}
+.cfg-input:focus { border-color: var(--accent); }
+.cfg-save-btn {
+  padding: 9px 16px; background: var(--accent); border: none;
+  border-radius: 9px; color: white; font-family: 'Syne', sans-serif;
+  font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: opacity 0.2s; flex-shrink: 0;
+}
+.cfg-save-btn:hover { opacity: 0.85; }
+.cfg-tool-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+}
+.cfg-tool-title {
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.92rem; margin-bottom: 4px;
+}
+.cfg-tool-desc { font-size: 0.78rem; color: var(--text3); line-height: 1.5; }
+.cfg-divider { height: 1px; background: var(--border); margin: 18px 0; }
+.cfg-action-btn {
+  padding: 9px 18px; border: none; border-radius: 10px;
+  font-family: 'Syne', sans-serif; font-weight: 600;
+  font-size: 0.8rem; cursor: pointer; white-space: nowrap;
+  flex-shrink: 0; transition: opacity 0.2s;
+}
+.cfg-action-btn:hover { opacity: 0.82; }
+.cfg-btn-yellow { background: linear-gradient(135deg,#f59e0b,#d97706); color: white; }
+.cfg-btn-purple { background: linear-gradient(135deg,var(--accent),var(--accent2)); color: white; }
+.cfg-btn-red { background: linear-gradient(135deg,#ef4444,#dc2626); color: white; }
+.cfg-btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border) !important; }
+
+@media (max-width: 600px) {
+  .cfg-profile-row { flex-direction: column; align-items: center; text-align: center; }
+  .cfg-tool-row { flex-direction: column; }
+  .cfg-action-btn { width: 100%; }
+}
+
+/* ════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+════════════════════════════════════════════════ */
+#toastContainer {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 9999; display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 18px;
+  font-size: 0.85rem; color: var(--text);
+  animation: slide-up 0.3s ease; white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+
+/* ════════════════════════════════════════════════
+   LOADING OVERLAY
+════════════════════════════════════════════════ */
+#loadingOverlay {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9998; flex-direction: column; gap: 16px;
+}
+.loading-spinner {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+.loading-text { font-size: 0.85rem; color: var(--text3); }
+
+/* ════════════════════════════════════════════════
+   MODAL / BOTTOM SHEET
+════════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  z-index: 500; display: none; align-items: flex-end;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.visible { display: flex; }
+.bottom-sheet {
+  width: 100%; background: var(--bg2); border-radius: 24px 24px 0 0;
+  padding: 20px 0 40px;
+  animation: slide-up 0.3s cubic-bezier(0.22,1,0.36,1);
+}
+.sheet-handle {
+  width: 36px; height: 4px; background: var(--border);
+  border-radius: 2px; margin: 0 auto 20px;
+}
+.sheet-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 24px; cursor: pointer; transition: background 0.15s;
+}
+.sheet-item:hover { background: var(--bg3); }
+.sheet-item-icon { font-size: 1.2rem; width: 24px; text-align: center; }
+.sheet-item-label { font-size: 0.92rem; }
+.sheet-item.danger { color: var(--red); }
+
+/* ════════════════════════════════════════════════
+   EMPTY STATE
+════════════════════════════════════════════════ */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 60px 32px; text-align: center;
+  gap: 12px;
+}
+.empty-icon { font-size: 3rem; opacity: 0.4; }
+.empty-title {
+  font-family: 'Syne', sans-serif; font-size: 1.1rem;
+  font-weight: 700; color: var(--text2);
+}
+.empty-desc { font-size: 0.82rem; color: var(--text3); line-height: 1.6; }
+.empty-btn {
+  margin-top: 8px; padding: 11px 22px;
+  background: var(--accent); border: none; border-radius: 12px;
+  color: white; font-family: 'Syne', sans-serif;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+
+/* ════════════════════════════════════════════════
+   CHIP / BADGE
+════════════════════════════════════════════════ */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 100px;
+  font-size: 0.72rem; font-weight: 600;
+  border: 1px solid transparent;
+}
+.chip-purple {
+  background: rgba(124,92,252,0.15); border-color: rgba(124,92,252,0.3);
+  color: var(--accent2);
+}
+.chip-green {
+  background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.3);
+  color: var(--green);
+}
+
+/* ════════════════════════════════════════════════
+   TOGGLE SWITCH
+════════════════════════════════════════════════ */
+.toggle {
+  position: relative; width: 46px; height: 26px; flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0; background: var(--bg4);
+  border-radius: 13px; cursor: pointer; transition: background 0.2s;
+  border: 1px solid var(--border);
+}
+.toggle-slider::before {
+  content: ''; position: absolute; width: 18px; height: 18px;
+  left: 3px; top: 3px; border-radius: 50%; background: var(--text3);
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle input:checked + .toggle-slider { background: rgba(124,92,252,0.3); border-color: var(--accent); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(20px); background: var(--accent2); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     LOADING OVERLAY
+═══════════════════════════════════════════ -->
+<div id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Cargando Sonatta...</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TOAST CONTAINER
+═══════════════════════════════════════════ -->
+<div id="toastContainer"></div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA 1 — BIENVENIDA
+═══════════════════════════════════════════ -->
+<div id="welcomeScreen" class="screen">
+  <div class="ws-bg">
+    <div class="ws-orb1"></div>
+    <div class="ws-orb2"></div>
+    <div class="ws-orb3"></div>
+    <div class="ws-grain"></div>
+  </div>
+
+  <div class="welcome-top">
+    <div class="ws-logo-wrap">
+      <div class="ws-logo-ring">
+        <div class="ws-logo-inner">
+          <svg width="36" height="44" viewBox="0 0 36 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 3 C18 3 10 9 10 17 C10 23 13.5 27 18 29 C22.5 27 26 23 26 17 C26 9 18 3 18 3Z" stroke="#d4a028" stroke-width="1.5" fill="rgba(212,160,40,0.1)"/>
+            <circle cx="18" cy="17" r="4" fill="#d4a028" opacity="0.9"/>
+            <line x1="18" y1="29" x2="18" y2="46" stroke="#d4a028" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 41 C10 43 11 46 13.5 47 C16 48 18 46 18 46" stroke="#d4a028" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+            <circle cx="14" cy="47" r="2.5" stroke="#d4a028" stroke-width="1.2" fill="none"/>
+          </svg>
+        </div>
+      </div>
+      <div class="ws-eq">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    <div class="ws-title">Sonatta</div>
+    <div class="ws-subtitle">Tu música · Tus nubes</div>
+    <div class="ws-clouds">
+      <div class="ws-cloud-chip"><span class="ws-cloud-dot dot-gdrive"></span>Google Drive</div>
+      <div class="ws-cloud-chip"><span class="ws-cloud-dot dot-onedrive"></span>OneDrive</div>
+      <div class="ws-cloud-chip"><span class="ws-cloud-dot dot-dropbox"></span>Dropbox</div>
+    </div>
+  </div>
+
+  <div class="welcome-bottom">
+    <button class="ws-btn-primary" onclick="showScreen('loginScreen')">Iniciar sesión</button>
+    <button class="ws-btn-secondary" onclick="showScreen('registerScreen')">Crear cuenta gratis</button>
+    <div class="ws-footer">Al continuar aceptas los Términos y Política de Privacidad</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA 2 — LOGIN
+═══════════════════════════════════════════ -->
+<div id="loginScreen" class="screen">
+  <button class="auth-back" onclick="showScreen('welcomeScreen')">←</button>
+  <div class="auth-logo"><span>Sonatta</span></div>
+  <div class="auth-subtitle">Bienvenido de vuelta</div>
+
+  <div class="auth-form">
+    <div class="auth-error" id="loginError"></div>
+
+    <div class="auth-field">
+      <label class="auth-label">Correo electrónico</label>
+      <input type="email" class="auth-input" id="loginEmail" placeholder="tu@correo.com">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Contraseña</label>
+      <input type="password" class="auth-input" id="loginPass" placeholder="••••••••">
+    </div>
+    <button class="auth-btn" id="loginBtn" onclick="handleLogin()">Entrar</button>
+
+    <div class="auth-divider">o continúa con</div>
+    <button class="auth-google" onclick="handleGoogleLogin()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continuar con Google
+    </button>
+
+    <div class="auth-switch">
+      ¿No tienes cuenta? <a href="#" onclick="showScreen('registerScreen')">Regístrate</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA 3 — REGISTRO
+═══════════════════════════════════════════ -->
+<div id="registerScreen" class="screen">
+  <button class="auth-back" onclick="showScreen('welcomeScreen')">←</button>
+  <div class="auth-logo"><span>Sonatta</span></div>
+  <div class="auth-subtitle">Crea tu cuenta — es gratis</div>
+
+  <div class="auth-form">
+    <div class="auth-error" id="registerError"></div>
+
+    <div class="auth-field">
+      <label class="auth-label">Nombre</label>
+      <input type="text" class="auth-input" id="registerName" placeholder="Tu nombre">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Correo electrónico</label>
+      <input type="email" class="auth-input" id="registerEmail" placeholder="tu@correo.com">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Contraseña</label>
+      <input type="password" class="auth-input" id="registerPass" placeholder="Mínimo 6 caracteres">
+    </div>
+    <button class="auth-btn" id="registerBtn" onclick="handleRegister()">Crear cuenta</button>
+
+    <div class="auth-divider">o regístrate con</div>
+    <button class="auth-google" onclick="handleGoogleLogin()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continuar con Google
+    </button>
+
+    <div class="auth-switch">
+      ¿Ya tienes cuenta? <a href="#" onclick="showScreen('loginScreen')">Inicia sesión</a>
+    </div>
+  </div>
+</div>
+
+<!-- HOME + FULL PLAYER + SECONDARY SCREENS -->
+<div id="homeScreen" class="screen">
+  <div class="content-area" id="homeContent">
+    <div class="screen-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <div><h2 id="homeGreeting">Hola 👋</h2><p id="homeSubtitle">¿Qué quieres escuchar hoy?</p></div>
+      <div id="homeAvatar" onclick="switchView('settings')" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;overflow:hidden;border:2px solid var(--border);"></div>
+    </div>
+    <div style="padding:0 16px 16px;">
+      <div style="position:relative;">
+        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.4;">🔍</span>
+        <input id="searchInput" type="text" placeholder="Buscar canciones, artistas..." oninput="filterSongs(this.value)" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:14px;padding:12px 14px 12px 42px;color:var(--text);font-size:0.88rem;font-family:'DM Sans',sans-serif;outline:none;">
+      </div>
+    </div>
+    <div style="padding:0 16px 20px;display:flex;gap:10px;">
+      <button onclick="importLocalFiles()" style="flex:1;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:14px;color:white;font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><span>📁</span> Agregar música local</button>
+      <button onclick="switchView('clouds')" style="width:50px;height:50px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;color:var(--text2);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">☁️</button>
+    </div>
+    <input type="file" id="fileInput" accept="audio/*" multiple style="display:none" onchange="handleFileImport(event)">
+    <div id="nowPlayingSection" style="display:none;padding:0 16px 20px;">
+      <div class="cfg-section-title">Reproduciendo ahora</div>
+      <div id="nowPlayingCard" onclick="openFullPlayer()" style="background:linear-gradient(135deg,rgba(124,92,252,0.15),rgba(56,189,248,0.08));border:1px solid rgba(124,92,252,0.25);border-radius:18px;padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;">
+        <div id="npCover" style="width:60px;height:60px;border-radius:12px;background:var(--bg3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">🎵</div>
+        <div style="flex:1;min-width:0;">
+          <div id="npTitle" style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+          <div id="npArtist" style="font-size:0.78rem;color:var(--text3);margin-top:3px;">—</div>
+          <div style="margin-top:10px;height:3px;background:var(--border);border-radius:2px;"><div id="npProgress" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width 0.3s linear;"></div></div>
+        </div>
+        <button id="npPlayBtn" onclick="event.stopPropagation();togglePlay()" style="width:44px;height:44px;border-radius:50%;background:var(--accent);border:none;color:white;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">▶</button>
+      </div>
+    </div>
+    <div style="padding:0 16px 8px;display:flex;align-items:center;justify-content:space-between;">
+      <div class="cfg-section-title" style="margin:0;">Mis canciones <span id="songCount" style="color:var(--text3);font-weight:400;"></span></div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="shuffleAll()" style="width:34px;height:34px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;color:var(--text2);font-size:0.95rem;cursor:pointer;">🔀</button>
+        <button onclick="sortSongs()" style="width:34px;height:34px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;color:var(--text2);font-size:0.95rem;cursor:pointer;">↕️</button>
+      </div>
+    </div>
+    <div id="songsList" style="padding:0 8px 8px;"></div>
+    <div id="songsEmpty" class="empty-state">
+      <div class="empty-icon">🎵</div>
+      <div class="empty-title">Sin canciones aún</div>
+      <div class="empty-desc">Agrega música desde tu dispositivo o conecta una nube.</div>
+      <button class="empty-btn" onclick="importLocalFiles()">Agregar música</button>
+    </div>
+  </div>
+  <div id="miniPlayer">
+    <div class="mini-cover" id="miniCover"><div class="mini-cover-placeholder">🎵</div></div>
+    <div class="mini-info"><div class="mini-title" id="miniTitle">Sin canción</div><div class="mini-artist" id="miniArtist">—</div></div>
+    <div class="mini-controls">
+      <button class="mini-btn" onclick="prevSong()">⏮</button>
+      <button class="mini-play-btn" id="miniPlayBtn" onclick="togglePlay()">▶</button>
+      <button class="mini-btn" onclick="nextSong()">⏭</button>
+    </div>
+    <div class="mini-progress"><div class="mini-progress-bar" id="miniProgressBar"></div></div>
+  </div>
+  <nav class="nav-bottom">
+    <button class="nav-item active" id="nav-home" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
+    <button class="nav-item" id="nav-clouds" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
+    <button class="nav-item" id="nav-playlists" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Playlists</span></button>
+    <button class="nav-item" id="nav-settings" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
+  </nav>
+</div>
+
+<div id="fullPlayer" style="position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column;display:none;overflow:hidden;">
+  <div class="fp-bg"></div>
+  <div class="fp-header">
+    <button class="fp-close" onclick="closeFullPlayer()">↓</button>
+    <span class="fp-title-top">Reproduciendo ahora</span>
+    <div style="width:38px;"></div>
+  </div>
+  <div class="fp-cover-wrap">
+    <div class="fp-cover" style="position:relative;">
+      <div class="fp-cover-placeholder" id="fpCoverPlaceholder">🎵</div>
+      <img id="fpCoverImg" src="" alt="" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+    </div>
+  </div>
+  <div class="fp-info">
+    <div><div class="fp-song-name" id="fpTitle">—</div><div class="fp-artist-name" id="fpArtist">—</div></div>
+    <button class="fp-like-btn" id="fpLikeBtn" onclick="toggleLike()">♡</button>
+  </div>
+  <div class="fp-progress-wrap">
+    <div class="fp-progress-bar-wrap" id="fpProgressWrap" onclick="seekTo(event)">
+      <div class="fp-progress-bar-fill" id="fpProgressFill"></div>
+    </div>
+    <div class="fp-times"><span id="fpCurrentTime">0:00</span><span id="fpDuration">0:00</span></div>
+  </div>
+  <div class="fp-controls">
+    <button class="fp-ctrl-btn" id="fpShuffleBtn" onclick="toggleShuffle()">🔀</button>
+    <button class="fp-prev-btn" onclick="prevSong()">⏮</button>
+    <button class="fp-play-btn" id="fpPlayBtn" onclick="togglePlay()">▶</button>
+    <button class="fp-next-btn" onclick="nextSong()">⏭</button>
+    <button class="fp-ctrl-btn" id="fpRepeatBtn" onclick="toggleRepeat()">🔁</button>
+  </div>
+  <div class="fp-extras">
+    <div class="fp-vol-wrap">
+      <span class="fp-vol-icon">🔈</span>
+      <input type="range" class="fp-vol-slider" id="fpVolume" min="0" max="100" value="100" oninput="setVolume(this.value)">
+      <span class="fp-vol-icon">🔊</span>
+    </div>
+  </div>
+</div>
+
+<div id="cloudsScreen" class="screen">
+  <div class="content-area"><div class="screen-header"><h2>Nubes ☁️</h2><p>Conecta tus servicios de nube</p></div><div class="empty-state"><div class="empty-icon">☁️</div><div class="empty-title">Próximamente</div><div class="empty-desc">Google Drive, OneDrive y Dropbox — Parte 3</div></div></div>
+  <nav class="nav-bottom">
+    <button class="nav-item" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
+    <button class="nav-item active" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
+    <button class="nav-item" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Playlists</span></button>
+    <button class="nav-item" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
+  </nav>
+</div>
+
+<div id="playlistsScreen" class="screen">
+  <div class="content-area"><div class="screen-header"><h2>Playlists 🎶</h2><p>Tus listas de reproducción</p></div><div class="empty-state"><div class="empty-icon">🎶</div><div class="empty-title">Próximamente</div><div class="empty-desc">Playlists y listas inteligentes — Parte 4</div></div></div>
+  <nav class="nav-bottom">
+    <button class="nav-item" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
+    <button class="nav-item" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
+    <button class="nav-item active" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Playlists</span></button>
+    <button class="nav-item" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
+  </nav>
+</div>
+
+<div id="settingsScreen" class="screen">
+  <div class="content-area">
+    <div class="screen-header"><h2>Perfil ⚙️</h2><p>Tu cuenta y configuración</p></div>
+    <div style="padding:0 16px;">
+      <div class="cfg-section-title">Cuenta</div>
+      <div class="cfg-card">
+        <div class="cfg-profile-row">
+          <div class="cfg-avatar-wrap"><div class="cfg-avatar" id="settingsAvatar"></div></div>
+          <div class="cfg-profile-info">
+            <div class="cfg-field-label">Nombre</div>
+            <div class="cfg-field-row"><input class="cfg-input" id="settingsName" placeholder="Tu nombre"><button class="cfg-save-btn" onclick="saveName()">Guardar</button></div>
+            <div style="font-size:0.75rem;color:var(--text3);margin-top:8px;" id="settingsEmail"></div>
+          </div>
+        </div>
+      </div>
+      <div class="cfg-section-title" style="margin-top:20px;">Sesión</div>
+      <div class="cfg-card">
+        <div class="cfg-tool-row">
+          <div><div class="cfg-tool-title">Cerrar sesión</div><div class="cfg-tool-desc">Salir de tu cuenta Sonatta.</div></div>
+          <button class="cfg-action-btn cfg-btn-red" onclick="window.SonattaApp.signOut()">Salir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <nav class="nav-bottom">
+    <button class="nav-item" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
+    <button class="nav-item" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
+    <button class="nav-item" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Playlists</span></button>
+    <button class="nav-item active" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
+  </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT PRINCIPAL
+═══════════════════════════════════════════ -->
+
+
+
+<script>
+// ═══════════════════════════════════════════
+// APP PRINCIPAL - SONATTA
+// ═══════════════════════════════════════════
+
+// ═══════════════════════════════════════════
+// NAVEGACIÓN DE PANTALLAS
+// ═══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const screen = document.getElementById(id);
+  if (screen) screen.classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════
+function showToast(msg, type = '') {
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = msg;
+  document.getElementById('toastContainer').appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ═══════════════════════════════════════════
+// AUTH HANDLERS
+// ═══════════════════════════════════════════
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+  const btn   = document.getElementById('loginBtn');
+
+  err.classList.remove('visible');
+  if (!email || !pass) { err.textContent = 'Completa todos los campos.'; err.classList.add('visible'); return; }
+
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  try {
+    await window.SonattaApp.signIn(email, pass);
+    showToast('¡Bienvenido de vuelta! 🎵', 'success');
+  } catch(e) {
+    err.textContent = getFriendlyError(e.code);
+    err.classList.add('visible');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+}
+
+async function handleRegister() {
+  const name  = document.getElementById('registerName').value.trim();
+  const email = document.getElementById('registerEmail').value.trim();
+  const pass  = document.getElementById('registerPass').value;
+  const err   = document.getElementById('registerError');
+  const btn   = document.getElementById('registerBtn');
+
+  err.classList.remove('visible');
+  if (!name || !email || !pass) { err.textContent = 'Completa todos los campos.'; err.classList.add('visible'); return; }
+  if (pass.length < 6) { err.textContent = 'La contraseña debe tener al menos 6 caracteres.'; err.classList.add('visible'); return; }
+
+  btn.disabled = true; btn.textContent = 'Creando cuenta...';
+  try {
+    const cred = await window.SonattaApp.signUp(email, pass);
+    await window.SonattaApp.updateUserProfile({ displayName: name });
+    // Crear documento de usuario en Firestore
+    await window.SonattaApp.saveDoc('users', cred.user.uid, {
+      name, email,
+      createdAt: new Date().toISOString(),
+      plan: 'free'
+    });
+    showToast('¡Cuenta creada! Bienvenido a Sonatta 🎵', 'success');
+  } catch(e) {
+    err.textContent = getFriendlyError(e.code);
+    err.classList.add('visible');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Crear cuenta';
+  }
+}
+
+async function handleGoogleLogin() {
+  try {
+    const result = await window.SonattaApp.signInGoogle();
+    const user = result.user;
+    // Guardar/actualizar usuario en Firestore
+    await window.SonattaApp.saveDoc('users', user.uid, {
+      name: user.displayName,
+      email: user.email,
+      lastLogin: new Date().toISOString()
+    });
+    showToast('¡Bienvenido! 🎵', 'success');
+  } catch(e) {
+    showToast(getFriendlyError(e.code), 'error');
+  }
+}
+
+// ═══════════════════════════════════════════
+// ERRORES AMIGABLES
+// ═══════════════════════════════════════════
+function getFriendlyError(code) {
+  const errors = {
+    'auth/user-not-found': 'No existe una cuenta con ese correo.',
+    'auth/wrong-password': 'Contraseña incorrecta.',
+    'auth/email-already-in-use': 'Ese correo ya está registrado.',
+    'auth/invalid-email': 'El correo no es válido.',
+    'auth/weak-password': 'La contraseña es muy débil.',
+    'auth/popup-closed-by-user': 'Cerraste la ventana de Google.',
+    'auth/network-request-failed': 'Sin conexión a internet.',
+    'auth/too-many-requests': 'Demasiados intentos. Espera un momento.',
+    'auth/invalid-credential': 'Credenciales incorrectas. Verifica tu correo y contraseña.',
+  };
+  return errors[code] || 'Error inesperado. Intenta de nuevo.';
+}
+
+// ═══════════════════════════════════════════
+// INIT — esperar Firebase y ocultar loading
+// ═══════════════════════════════════════════
+document.addEventListener('firebaseReady', () => {
+  // onAuthStateChanged ya controla la pantalla inicial
+  setTimeout(() => {
+    document.getElementById('loadingOverlay').style.display = 'none';
+  }, 800);
+});
+
+// ═══════════════════════════════════════════
+// VISTA SWITCHER (navegación entre secciones)
+// ═══════════════════════════════════════════
+function switchView(view) {
+  const screens = { home:'homeScreen', clouds:'cloudsScreen', playlists:'playlistsScreen', settings:'settingsScreen' };
+  showScreen(screens[view] || 'homeScreen');
+  // Mover mini player y full player al screen activo si es homeScreen
+  const mp = document.getElementById('miniPlayer');
+  const fp = document.getElementById('fullPlayer');
+  if (mp && view === 'home') {
+    document.getElementById('homeScreen').appendChild(mp);
+  }
+  // Update nav active states
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll(`#nav-${view}`).forEach(b => b.classList.add('active'));
+}
+
+// ═══════════════════════════════════════════
+// UI CALLBACKS FIREBASE
+// ═══════════════════════════════════════════
+window.SonattaUI = {
+  onUserLogin(user) {
+    // Saludo
+    const hour = new Date().getHours();
+    const greet = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
+    const name = user.displayName ? user.displayName.split(' ')[0] : 'Músico';
+    const greetEl = document.getElementById('homeGreeting');
+    if (greetEl) greetEl.textContent = `${greet}, ${name} 👋`;
+
+    // Avatar
+    const initial = (user.displayName || user.email || 'S')[0].toUpperCase();
+    ['homeAvatar','settingsAvatar'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (user.photoURL) {
+        el.innerHTML = `<img src="${user.photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      } else {
+        el.textContent = initial;
+      }
+    });
+
+    // Settings
+    const nameInput = document.getElementById('settingsName');
+    if (nameInput) nameInput.value = user.displayName || '';
+    const emailEl = document.getElementById('settingsEmail');
+    if (emailEl) emailEl.textContent = user.email;
+
+    // Cargar canciones desde Firestore
+    loadSongsFromFirestore(user.uid);
+  }
+};
+
+// ═══════════════════════════════════════════
+// GUARDAR NOMBRE DE USUARIO
+// ═══════════════════════════════════════════
+async function saveName() {
+  const name = document.getElementById('settingsName').value.trim();
+  if (!name) return;
+  try {
+    await window.SonattaApp.updateUserProfile({ displayName: name });
+    const user = window.SonattaApp.currentUser;
+    if (user) await window.SonattaApp.saveDoc('users', user.uid, { name });
+    showToast('Nombre actualizado ✓', 'success');
+  } catch(e) { showToast('Error al guardar', 'error'); }
+}
+
+// ═══════════════════════════════════════════
+// CANCIONES — estado local
+// ═══════════════════════════════════════════
+let localSongs = [];      // canciones locales (File objects + metadata)
+let displayedSongs = [];  // canciones filtradas/mostradas
+let sortAsc = true;
+
+// ═══════════════════════════════════════════
+// CARGAR CANCIONES DESDE FIRESTORE
+// ═══════════════════════════════════════════
+async function loadSongsFromFirestore(uid) {
+  try {
+    const snap = await window.SonattaApp.getDocs(`users/${uid}/songs`);
+    const firestoreSongs = [];
+    snap.forEach(doc => firestoreSongs.push({ id: doc.id, ...doc.data(), source: 'firestore' }));
+    // Merge con canciones locales (que están en memoria)
+    displayedSongs = [...localSongs, ...firestoreSongs];
+    renderSongs(displayedSongs);
+  } catch(e) {
+    console.warn('No se pudieron cargar canciones de Firestore:', e);
+    renderSongs(localSongs);
+  }
+}
+
+// ═══════════════════════════════════════════
+// IMPORTAR ARCHIVOS LOCALES
+// ═══════════════════════════════════════════
+function importLocalFiles() {
+  document.getElementById('fileInput').click();
+}
+
+function handleFileImport(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+  showToast(`Importando ${files.length} archivo(s)...`);
+  let processed = 0;
+  files.forEach(file => {
+    const url = URL.createObjectURL(file);
+    const song = {
+      id: 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+      title: file.name.replace(/\.[^.]+$/, ''),
+      artist: 'Artista desconocido',
+      album: '',
+      duration: 0,
+      coverUrl: null,
+      fileUrl: url,
+      file: file,
+      source: 'local'
+    };
+    // Leer metadatos ID3 si está disponible
+    if (window.jsmediatags) {
+      jsmediatags.read(file, {
+        onSuccess(tag) {
+          const t = tag.tags;
+          if (t.title) song.title = t.title;
+          if (t.artist) song.artist = t.artist;
+          if (t.album) song.album = t.album;
+          if (t.picture) {
+            const { data, format } = t.picture;
+            const base64 = data.reduce((s,b) => s + String.fromCharCode(b), '');
+            song.coverUrl = `data:${format};base64,${btoa(base64)}`;
+          }
+          localSongs.push(song);
+          processed++;
+          if (processed === files.length) finishImport();
+        },
+        onError() {
+          localSongs.push(song);
+          processed++;
+          if (processed === files.length) finishImport();
+        }
+      });
+    } else {
+      localSongs.push(song);
+      processed++;
+      if (processed === files.length) finishImport();
+    }
+  });
+  event.target.value = '';
+}
+
+function finishImport() {
+  displayedSongs = [...localSongs];
+  renderSongs(displayedSongs);
+  showToast(`${localSongs.length} canción(es) listas 🎵`, 'success');
+}
+
+// ═══════════════════════════════════════════
+// RENDERIZAR LISTA DE CANCIONES
+// ═══════════════════════════════════════════
+function renderSongs(songs) {
+  const list = document.getElementById('songsList');
+  const empty = document.getElementById('songsEmpty');
+  const count = document.getElementById('songCount');
+  if (!list) return;
+  if (songs.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'flex';
+    if (count) count.textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  if (count) count.textContent = `(${songs.length})`;
+  list.innerHTML = songs.map((s, i) => `
+    <div class="song-item ${window.SonattaApp.currentIndex === i ? 'playing' : ''}" onclick="playSong(${i})">
+      <div class="song-cover">
+        ${s.coverUrl
+          ? `<img src="${s.coverUrl}" alt="${s.title}" loading="lazy">`
+          : `<span class="song-cover-icon">🎵</span>`}
+      </div>
+      <div class="song-info">
+        <div class="song-name">${escHtml(s.title)}</div>
+        <div class="song-meta">${escHtml(s.artist)}${s.album ? ' · ' + escHtml(s.album) : ''}</div>
+      </div>
+      ${s.duration ? `<span class="song-duration">${formatTime(s.duration)}</span>` : ''}
+      <button class="song-menu-btn" onclick="event.stopPropagation();showSongMenu(${i})">⋮</button>
+    </div>
+  `).join('');
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════
+// BÚSQUEDA Y ORDENAR
+// ═══════════════════════════════════════════
+function filterSongs(query) {
+  const q = query.toLowerCase();
+  const filtered = localSongs.filter(s =>
+    s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
+  );
+  renderSongs(filtered);
+}
+
+function sortSongs() {
+  sortAsc = !sortAsc;
+  localSongs.sort((a,b) => sortAsc
+    ? a.title.localeCompare(b.title)
+    : b.title.localeCompare(a.title));
+  displayedSongs = [...localSongs];
+  renderSongs(displayedSongs);
+  showToast(sortAsc ? 'Orden: A → Z' : 'Orden: Z → A');
+}
+
+function shuffleAll() {
+  if (!localSongs.length) return;
+  const idx = Math.floor(Math.random() * localSongs.length);
+  window.SonattaApp.shuffle = true;
+  playSong(idx);
+}
+
+// ═══════════════════════════════════════════
+// REPRODUCTOR — PLAY / PAUSE / NAV
+// ═══════════════════════════════════════════
+function playSong(index) {
+  const songs = displayedSongs.length ? displayedSongs : localSongs;
+  if (!songs.length || index < 0 || index >= songs.length) return;
+  const song = songs[index];
+  const app = window.SonattaApp;
+  app.currentIndex = index;
+  app.currentSong = song;
+
+  // Si tiene fileUrl local usarlo, si tiene streamUrl usar ese
+  const url = song.fileUrl || song.streamUrl || '';
+  if (!url) { showToast('No se puede reproducir esta canción', 'error'); return; }
+
+  app.audio.src = url;
+  app.audio.play().then(() => {
+    app.isPlaying = true;
+    updatePlayerUI(song);
+    updatePlayButtons(true);
+    // Mostrar nowPlaying
+    document.getElementById('nowPlayingSection').style.display = 'block';
+    // Mostrar mini player
+    const mp = document.getElementById('miniPlayer');
+    if (mp) mp.classList.add('visible');
+  }).catch(e => {
+    showToast('Error al reproducir: ' + e.message, 'error');
+  });
+
+  // Actualizar duración cuando esté disponible
+  app.audio.onloadedmetadata = () => {
+    song.duration = app.audio.duration;
+    document.getElementById('fpDuration').textContent = formatTime(app.audio.duration);
+  };
+
+  renderSongs(songs);
+}
+
+function togglePlay() {
+  const app = window.SonattaApp;
+  if (!app.currentSong) return;
+  if (app.isPlaying) {
+    app.audio.pause();
+    app.isPlaying = false;
+    updatePlayButtons(false);
+  } else {
+    app.audio.play();
+    app.isPlaying = true;
+    updatePlayButtons(true);
+  }
+}
+
+function prevSong() {
+  const app = window.SonattaApp;
+  const songs = displayedSongs.length ? displayedSongs : localSongs;
+  if (!songs.length) return;
+  let idx = app.currentIndex - 1;
+  if (idx < 0) idx = songs.length - 1;
+  playSong(idx);
+}
+
+function nextSong() {
+  const app = window.SonattaApp;
+  const songs = displayedSongs.length ? displayedSongs : localSongs;
+  if (!songs.length) return;
+  let idx;
+  if (app.shuffle) {
+    idx = Math.floor(Math.random() * songs.length);
+  } else {
+    idx = app.currentIndex + 1;
+    if (idx >= songs.length) {
+      if (app.repeat === 'all') idx = 0;
+      else { app.audio.pause(); app.isPlaying = false; updatePlayButtons(false); return; }
+    }
+  }
+  playSong(idx);
+}
+
+function toggleShuffle() {
+  const app = window.SonattaApp;
+  app.shuffle = !app.shuffle;
+  const btn = document.getElementById('fpShuffleBtn');
+  if (btn) btn.style.color = app.shuffle ? 'var(--accent2)' : '';
+  showToast(app.shuffle ? 'Aleatorio activado 🔀' : 'Aleatorio desactivado');
+}
+
+function toggleRepeat() {
+  const app = window.SonattaApp;
+  const modes = ['none','one','all'];
+  const idx = modes.indexOf(app.repeat);
+  app.repeat = modes[(idx + 1) % 3];
+  const icons = { none:'🔁', one:'🔂', all:'🔁' };
+  const btn = document.getElementById('fpRepeatBtn');
+  if (btn) {
+    btn.textContent = icons[app.repeat];
+    btn.style.color = app.repeat !== 'none' ? 'var(--accent2)' : '';
+  }
+  const labels = { none:'Sin repetición', one:'Repetir esta canción', all:'Repetir todo' };
+  showToast(labels[app.repeat]);
+}
+
+function toggleLike() {
+  const btn = document.getElementById('fpLikeBtn');
+  if (!btn) return;
+  const liked = btn.classList.toggle('liked');
+  btn.textContent = liked ? '♥' : '♡';
+  showToast(liked ? 'Añadida a favoritos ♥' : 'Eliminada de favoritos');
+}
+
+// ═══════════════════════════════════════════
+// VOLUMEN Y SEEK
+// ═══════════════════════════════════════════
+function setVolume(val) {
+  window.SonattaApp.audio.volume = val / 100;
+}
+
+function seekTo(event) {
+  const bar = document.getElementById('fpProgressWrap');
+  if (!bar) return;
+  const rect = bar.getBoundingClientRect();
+  const pct = (event.clientX - rect.left) / rect.width;
+  const app = window.SonattaApp;
+  if (app.audio.duration) {
+    app.audio.currentTime = pct * app.audio.duration;
+  }
+}
+
+// ═══════════════════════════════════════════
+// ACTUALIZAR UI DEL PLAYER
+// ═══════════════════════════════════════════
+function updatePlayerUI(song) {
+  // Mini player
+  setElText('miniTitle', song.title);
+  setElText('miniArtist', song.artist);
+  const mc = document.getElementById('miniCover');
+  if (mc) mc.innerHTML = song.coverUrl
+    ? `<img src="${song.coverUrl}" style="width:100%;height:100%;object-fit:cover;">`
+    : `<div class="mini-cover-placeholder">🎵</div>`;
+
+  // Full player
+  setElText('fpTitle', song.title);
+  setElText('fpArtist', song.artist || '—');
+  const fpImg = document.getElementById('fpCoverImg');
+  const fpPh  = document.getElementById('fpCoverPlaceholder');
+  if (song.coverUrl && fpImg) {
+    fpImg.src = song.coverUrl; fpImg.style.display = 'block';
+    if (fpPh) fpPh.style.display = 'none';
+  } else {
+    if (fpImg) fpImg.style.display = 'none';
+    if (fpPh) fpPh.style.display = 'flex';
+  }
+
+  // Now playing card
+  setElText('npTitle', song.title);
+  setElText('npArtist', song.artist);
+  const nc = document.getElementById('npCover');
+  if (nc) nc.innerHTML = song.coverUrl
+    ? `<img src="${song.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`
+    : '🎵';
+}
+
+function setElText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text || '—';
+}
+
+function updatePlayButtons(playing) {
+  const icon = playing ? '⏸' : '▶';
+  ['miniPlayBtn','fpPlayBtn','npPlayBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = icon;
+  });
+}
+
+// ═══════════════════════════════════════════
+// PROGRESS — timeupdate
+// ═══════════════════════════════════════════
+// [audio listeners inicializados en initAudioListeners]
+
+function setElProp(id, prop, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const parts = prop.split('.');
+  let obj = el;
+  for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = val;
+}
+
+// ═══════════════════════════════════════════
+// FULL PLAYER OPEN/CLOSE
+// ═══════════════════════════════════════════
+function openFullPlayer() {
+  const fp = document.getElementById('fullPlayer');
+  if (fp) fp.style.display = 'flex';
+}
+function closeFullPlayer() {
+  const fp = document.getElementById('fullPlayer');
+  if (fp) fp.style.display = 'none';
+}
+
+// ═══════════════════════════════════════════
+// SONG MENU (placeholder)
+// ═══════════════════════════════════════════
+function showSongMenu(index) {
+  showToast('Menú de canción — Parte 4 🎶');
+}
+
+// ═══════════════════════════════════════════
+// UTILIDADES
+// ═══════════════════════════════════════════
+function formatTime(secs) {
+  if (!secs || isNaN(secs)) return '0:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+// Fallback si Firebase tarda
+setTimeout(() => {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}, 3000);
+
+
+// ═══════════════════════════════════════════
+// AUDIO LISTENERS — esperan a Firebase
+// ═══════════════════════════════════════════
+function initAudioListeners() {
+  const app = window.SonattaApp;
+  if (!app || !app.audio) return;
+  const audio = app.audio;
+
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
+    const pctStr = pct.toFixed(1) + '%';
+    setElProp('miniProgressBar', 'style.width', pctStr);
+    setElProp('fpProgressFill', 'style.width', pctStr);
+    setElProp('npProgress', 'style.width', pctStr);
+    setElText('fpCurrentTime', formatTime(audio.currentTime));
+  });
+
+  audio.addEventListener('ended', () => {
+    if (app.repeat === 'one') { audio.play(); return; }
+    nextSong();
+  });
+}
+
+document.addEventListener('firebaseReady', initAudioListeners);
+if (window.firebaseReady) initAudioListeners();
+</script>
+
+</body>
+</html>

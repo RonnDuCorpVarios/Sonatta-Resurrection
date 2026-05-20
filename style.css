@@ -1,0 +1,10 @@
+﻿
+    img {
+      filter: url('data:image/svg+xml,\
+        <svg xmlns="http://www.w3.org/2000/svg">\
+          <filter id="sharpen">\
+            <feConvolveMatrix order="3" preserveAlpha="true" kernelMatrix="1 -1 1 -1 -1 -1 1 -1 1"/>\
+          </filter>\
+        </svg>#sharpen');
+    }
+  
