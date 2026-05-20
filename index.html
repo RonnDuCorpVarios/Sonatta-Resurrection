@@ -923,6 +923,99 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 .toggle input:checked + .toggle-slider { background: rgba(124,92,252,0.3); border-color: var(--accent); }
 .toggle input:checked + .toggle-slider::before { transform: translateX(20px); background: var(--accent2); }
+
+/* ════════════════════════════════════════════════
+   NUBES — CLOUD CARDS
+════════════════════════════════════════════════ */
+.cloud-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.cloud-card:not(.cloud-card-soon):hover { border-color: var(--accent); }
+.cloud-card-soon { opacity: 0.5; }
+.cloud-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+.cloud-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.gdrive-icon { background: #1a1a2e; }
+.onedrive-icon { background: #0a1628; }
+.dropbox-icon { background: #00102e; }
+.cloud-info { flex: 1; }
+.cloud-name { font-weight: 700; font-size: 1rem; color: var(--text); }
+.cloud-status { font-size: 0.8rem; color: var(--text3); margin-top: 2px; }
+.cloud-status.connected { color: var(--green); }
+.cloud-connect-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+.cloud-connect-btn:hover:not(:disabled) { opacity: 0.85; }
+.cloud-connect-btn:disabled { background: var(--bg3); color: var(--text3); cursor: default; }
+.cloud-connect-btn.connected { background: var(--bg3); color: var(--red); }
+.cloud-files { border-top: 1px solid var(--border); }
+.cloud-files-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px;
+  font-size: 0.82rem; color: var(--text2);
+}
+.cloud-refresh-btn {
+  background: none; border: none; color: var(--accent2);
+  cursor: pointer; font-size: 0.82rem; font-weight: 600;
+}
+.cloud-songs-list { max-height: 400px; overflow-y: auto; }
+.cloud-song-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border);
+}
+.cloud-song-item:last-child { border-bottom: none; }
+.cloud-song-item:hover { background: var(--bg3); }
+.cloud-song-item.playing { background: rgba(124,92,252,0.1); }
+.cloud-song-cover {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: var(--bg3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex-shrink: 0; overflow: hidden;
+}
+.cloud-song-cover img { width: 100%; height: 100%; object-fit: cover; }
+.cloud-song-info { flex: 1; min-width: 0; }
+.cloud-song-name { font-size: 0.9rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cloud-song-meta { font-size: 0.75rem; color: var(--text3); margin-top: 2px; }
+.cloud-loading {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 24px;
+  color: var(--text2); font-size: 0.9rem;
+}
+.cloud-loading-spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 </style>
 </head>
 <body>
@@ -1157,7 +1250,58 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 </div>
 
 <div id="cloudsScreen" class="screen">
-  <div class="content-area"><div class="screen-header"><h2>Nubes ☁️</h2><p>Conecta tus servicios de nube</p></div><div class="empty-state"><div class="empty-icon">☁️</div><div class="empty-title">Próximamente</div><div class="empty-desc">Google Drive, OneDrive y Dropbox — Parte 3</div></div></div>
+  <div class="content-area">
+    <div class="screen-header"><h2>Nubes ☁️</h2><p>Conecta tus servicios de nube</p></div>
+
+    <!-- GOOGLE DRIVE -->
+    <div class="cloud-card" id="gdrive-card">
+      <div class="cloud-card-header">
+        <div class="cloud-icon gdrive-icon">
+          <svg viewBox="0 0 87.3 78" width="28" height="28"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.4c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 52.9H27.5L13.75 76.7c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.45l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 27.9h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
+        </div>
+        <div class="cloud-info">
+          <div class="cloud-name">Google Drive</div>
+          <div class="cloud-status" id="gdrive-status">No conectado</div>
+        </div>
+        <button class="cloud-connect-btn" id="gdrive-btn" onclick="connectGoogleDrive()">Conectar</button>
+      </div>
+      <div class="cloud-files" id="gdrive-files" style="display:none">
+        <div class="cloud-files-header">
+          <span id="gdrive-count">0 canciones encontradas</span>
+          <button class="cloud-refresh-btn" onclick="refreshGoogleDrive()">↻ Actualizar</button>
+        </div>
+        <div class="cloud-songs-list" id="gdrive-songs-list"></div>
+      </div>
+    </div>
+
+    <!-- ONEDRIVE — próximamente -->
+    <div class="cloud-card cloud-card-soon">
+      <div class="cloud-card-header">
+        <div class="cloud-icon onedrive-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="#0078d4"><path d="M10.5 18.5H6a4 4 0 01-.7-7.93 5.5 5.5 0 0110.7-1.05A3.5 3.5 0 0118.5 15a3.5 3.5 0 01-3.5 3.5h-4.5z"/></svg>
+        </div>
+        <div class="cloud-info">
+          <div class="cloud-name">OneDrive</div>
+          <div class="cloud-status">Próximamente</div>
+        </div>
+        <button class="cloud-connect-btn" disabled>Pronto</button>
+      </div>
+    </div>
+
+    <!-- DROPBOX — próximamente -->
+    <div class="cloud-card cloud-card-soon">
+      <div class="cloud-card-header">
+        <div class="cloud-icon dropbox-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="#0061ff"><path d="M6 2l6 3.75L6 9.5 0 5.75zm12 0l6 3.75-6 3.75-6-3.75zm-12 11l6-3.75 6 3.75-6 3.75zm12 0l6-3.75 6 3.75-6 3.75zM6 14.5l6 3.75-6 3.75-6-3.75z"/></svg>
+        </div>
+        <div class="cloud-info">
+          <div class="cloud-name">Dropbox</div>
+          <div class="cloud-status">Próximamente</div>
+        </div>
+        <button class="cloud-connect-btn" disabled>Pronto</button>
+      </div>
+    </div>
+  </div>
   <nav class="nav-bottom">
     <button class="nav-item" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
     <button class="nav-item active" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
@@ -1804,6 +1948,211 @@ function initAudioListeners() {
 
 document.addEventListener('firebaseReady', initAudioListeners);
 if (window.firebaseReady) initAudioListeners();
+</script>
+
+
+<script>
+// ═══════════════════════════════════════════
+// GOOGLE DRIVE INTEGRATION
+// ═══════════════════════════════════════════
+const GDRIVE_CLIENT_ID = '649651267267-gchjugrvpo5vav7fgq484ss3hgoqatc7.apps.googleusercontent.com';
+const GDRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+const MUSIC_EXTENSIONS = ['.mp3','.flac','.wav','.ogg','.m4a','.aac','.wma','.opus'];
+
+let gdriveToken = null;
+let gdriveConnected = false;
+
+// ── Cargar Google Identity Services ──────────────────────────────────────────
+function loadGISScript() {
+  return new Promise((resolve) => {
+    if (window.google && window.google.accounts) { resolve(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = resolve;
+    document.head.appendChild(script);
+  });
+}
+
+// ── Conectar Google Drive ─────────────────────────────────────────────────────
+async function connectGoogleDrive() {
+  const btn = document.getElementById('gdrive-btn');
+  const status = document.getElementById('gdrive-status');
+
+  if (gdriveConnected) {
+    disconnectGoogleDrive(); return;
+  }
+
+  btn.textContent = 'Conectando...';
+  btn.disabled = true;
+
+  try {
+    await loadGISScript();
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GDRIVE_CLIENT_ID,
+      scope: GDRIVE_SCOPES,
+      callback: async (response) => {
+        if (response.error) {
+          showToast('Error al conectar Google Drive: ' + response.error, 'error');
+          btn.textContent = 'Conectar'; btn.disabled = false; return;
+        }
+        gdriveToken = response.access_token;
+        gdriveConnected = true;
+        btn.textContent = 'Desconectar';
+        btn.classList.add('connected');
+        btn.disabled = false;
+        status.textContent = 'Conectado ✓';
+        status.classList.add('connected');
+        showToast('Google Drive conectado 🎵', 'success');
+
+        // Guardar en Firestore si hay usuario
+        const user = window.SonattaApp && window.SonattaApp.currentUser;
+        if (user) {
+          window.SonattaApp.saveDoc('users', user.uid, { gdrive_connected: true });
+        }
+
+        await loadGoogleDriveFiles();
+      }
+    });
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    btn.textContent = 'Conectar'; btn.disabled = false;
+  }
+}
+
+function disconnectGoogleDrive() {
+  gdriveToken = null; gdriveConnected = false;
+  const btn = document.getElementById('gdrive-btn');
+  const status = document.getElementById('gdrive-status');
+  const files = document.getElementById('gdrive-files');
+  btn.textContent = 'Conectar'; btn.classList.remove('connected'); btn.disabled = false;
+  status.textContent = 'No conectado'; status.classList.remove('connected');
+  files.style.display = 'none';
+  document.getElementById('gdrive-songs-list').innerHTML = '';
+  showToast('Google Drive desconectado');
+}
+
+// ── Cargar archivos de música desde Drive ────────────────────────────────────
+async function loadGoogleDriveFiles() {
+  const listEl = document.getElementById('gdrive-songs-list');
+  const filesEl = document.getElementById('gdrive-files');
+  const countEl = document.getElementById('gdrive-count');
+
+  filesEl.style.display = 'block';
+  listEl.innerHTML = '<div class="cloud-loading"><div class="cloud-loading-spinner"></div>Buscando música en Drive...</div>';
+
+  try {
+    // Buscar archivos de audio en Google Drive
+    const query = MUSIC_EXTENSIONS.map(ext => `name contains '${ext}'`).join(' or ');
+    const url = `https://www.googleapis.com/drive/v3/files?q=(${query}) and trashed=false&fields=files(id,name,mimeType,size,thumbnailLink,parents)&pageSize=200`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + gdriveToken }
+    });
+    const data = await res.json();
+
+    if (!data.files || data.files.length === 0) {
+      listEl.innerHTML = '<div class="cloud-loading">No se encontraron archivos de música en tu Drive 🎵</div>';
+      countEl.textContent = '0 canciones encontradas';
+      return;
+    }
+
+    countEl.textContent = `${data.files.length} canción(es) encontrada(s)`;
+    renderDriveSongs(data.files);
+
+  } catch(e) {
+    listEl.innerHTML = '<div class="cloud-loading">Error al cargar archivos</div>';
+    showToast('Error al leer Drive: ' + e.message, 'error');
+  }
+}
+
+async function refreshGoogleDrive() {
+  if (!gdriveConnected) return;
+  await loadGoogleDriveFiles();
+}
+
+// ── Renderizar canciones de Drive ─────────────────────────────────────────────
+function renderDriveSongs(files) {
+  const listEl = document.getElementById('gdrive-songs-list');
+  listEl.innerHTML = files.map((f, i) => {
+    const title = f.name.replace(/\.[^.]+$/, '');
+    const ext = f.name.split('.').pop().toUpperCase();
+    const cover = f.thumbnailLink
+      ? `<img src="${f.thumbnailLink}" alt="${escHtml(title)}">`
+      : '🎵';
+    return `
+      <div class="cloud-song-item" onclick="playDriveSong('${f.id}', '${escHtml(f.name)}', '${f.thumbnailLink || ''}', ${i})">
+        <div class="cloud-song-cover">${cover}</div>
+        <div class="cloud-song-info">
+          <div class="cloud-song-name">${escHtml(title)}</div>
+          <div class="cloud-song-meta">Google Drive · ${ext}</div>
+        </div>
+        <span style="font-size:0.75rem;color:var(--text3)">▶</span>
+      </div>`;
+  }).join('');
+}
+
+// ── Reproducir canción desde Drive ────────────────────────────────────────────
+async function playDriveSong(fileId, fileName, thumbnailLink, index) {
+  if (!gdriveToken) { showToast('Reconecta Google Drive', 'error'); return; }
+
+  const title = fileName.replace(/\.[^.]+$/, '');
+  showToast(`Cargando: ${title}...`);
+
+  try {
+    // Obtener URL de descarga directa
+    const streamUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+
+    const song = {
+      id: 'gdrive_' + fileId,
+      title,
+      artist: 'Google Drive',
+      album: '',
+      duration: 0,
+      coverUrl: thumbnailLink || null,
+      streamUrl,
+      source: 'gdrive',
+      driveToken: gdriveToken
+    };
+
+    // Agregar a la lista global y reproducir
+    const existingIdx = window.SonattaApp.songs.findIndex(s => s.id === song.id);
+    if (existingIdx === -1) window.SonattaApp.songs.push(song);
+
+    const app = window.SonattaApp;
+    app.currentSong = song;
+    app.currentIndex = index;
+
+    // Reproducir con token en el header via fetch + blob
+    const response = await fetch(streamUrl, {
+      headers: { Authorization: 'Bearer ' + gdriveToken }
+    });
+
+    if (!response.ok) throw new Error('No se pudo acceder al archivo');
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    app.audio.src = blobUrl;
+    app.audio.play().then(() => {
+      app.isPlaying = true;
+      updatePlayerUI(song);
+      updatePlayButtons(true);
+      document.getElementById('nowPlayingSection').style.display = 'block';
+      const mp = document.getElementById('miniPlayer');
+      if (mp) mp.classList.add('visible');
+      showToast('▶ ' + title, 'success');
+
+      // Marcar como playing en la lista
+      document.querySelectorAll('.cloud-song-item').forEach((el, i) => {
+        el.classList.toggle('playing', i === index);
+      });
+    }).catch(e => showToast('Error al reproducir: ' + e.message, 'error'));
+
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
 </script>
 
 </body>
