@@ -73,6 +73,9 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const screen = document.getElementById(id);
     if (screen) screen.classList.add('active');
+    // Ocultar nav en pantalla de bienvenida
+    const nav = document.getElementById('globalNav');
+    if (nav) nav.style.display = (id === 'welcomeScreen') ? 'none' : 'flex';
   };
 
   onAuthStateChanged(auth, (user) => {
@@ -1181,7 +1184,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
     // Estamos en la página de callback — enviar mensaje a la ventana que abrió el popup
     if (window.opener) {
       window.opener.postMessage(
-        { type: 'gdrive_code', code: code || null, error: error || null },
+        { type: 'gdrive_code', code: code || null, error: error || null, slot: urlParams.get('state') || '0' },
         'https://ronnducorpvarios.github.io'
       );
     }
@@ -1464,24 +1467,41 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   <div class="content-area">
     <div class="screen-header"><h2>Nubes ☁️</h2><p>Tus servicios conectados</p></div>
 
-    <!-- GOOGLE DRIVE ACCOUNT CARD -->
-    <div class="cloud-account-card" id="gdrive-card">
+    <!-- GOOGLE DRIVE — SLOT 0 -->
+    <div class="cloud-account-card" id="gdrive-card-0">
       <div class="cloud-account-header">
-        <div class="cloud-account-badge gdrive-icon">
-          <svg viewBox="0 0 87.3 78" width="28" height="28"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.4c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 52.9H27.5L13.75 76.7c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.45l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 27.9h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
-        </div>
+        <div class="cloud-account-badge gdrive-icon"><svg viewBox="0 0 87.3 78" width="24" height="24"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.4c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 52.9H27.5L13.75 76.7c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.45l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 27.9h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg></div>
         <div class="cloud-account-details">
-          <div class="cloud-account-name">Google Drive</div>
-          <div class="cloud-account-email" id="gdrive-email">—</div>
+          <div class="cloud-account-name">Google Drive <span style="font-size:0.7rem;color:var(--text3)">#1</span></div>
+          <div class="cloud-account-email" id="gdrive-email-0">—</div>
         </div>
-        <span class="cloud-status-pill off" id="gdrive-pill">Desconectado</span>
+        <span class="cloud-status-pill off" id="gdrive-pill-0">Desconectado</span>
       </div>
-      <div class="cloud-account-stats" id="gdrive-stats" style="display:none">
-        <div class="cloud-stat"><div class="cloud-stat-num" id="gdrive-song-count">0</div><div class="cloud-stat-label">Canciones</div></div>
-        <div class="cloud-stat"><div class="cloud-stat-num" id="gdrive-album-count">0</div><div class="cloud-stat-label">Álbumes</div></div>
+      <div class="cloud-account-stats" id="gdrive-stats-0" style="display:none">
+        <div class="cloud-stat"><div class="cloud-stat-num" id="gdrive-song-count-0">0</div><div class="cloud-stat-label">Canciones</div></div>
+        <div class="cloud-stat"><div class="cloud-stat-num" id="gdrive-album-count-0">0</div><div class="cloud-stat-label">Álbumes</div></div>
       </div>
-      <div style="padding:0 18px 16px;display:flex;gap:10px" id="gdrive-actions">
-        <button class="cloud-connect-btn" id="gdrive-btn" onclick="connectGoogleDrive()" style="flex:1">Conectar Google Drive</button>
+      <div style="padding:0 18px 16px">
+        <button class="cloud-connect-btn" id="gdrive-btn-0" onclick="connectGoogleDrive(0)" style="width:100%">Conectar Google Drive</button>
+      </div>
+    </div>
+
+    <!-- GOOGLE DRIVE — SLOT 1 -->
+    <div class="cloud-account-card" id="gdrive-card-1" style="opacity:0.6" >
+      <div class="cloud-account-header">
+        <div class="cloud-account-badge gdrive-icon"><svg viewBox="0 0 87.3 78" width="24" height="24"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.4c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 52.9H27.5L13.75 76.7c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.45l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 27.9h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg></div>
+        <div class="cloud-account-details">
+          <div class="cloud-account-name">Google Drive <span style="font-size:0.7rem;color:var(--text3)">#2</span></div>
+          <div class="cloud-account-email" id="gdrive-email-1">Conecta primero la cuenta #1</div>
+        </div>
+        <span class="cloud-status-pill off" id="gdrive-pill-1">Desconectado</span>
+      </div>
+      <div class="cloud-account-stats" id="gdrive-stats-1" style="display:none">
+        <div class="cloud-stat"><div class="cloud-stat-num" id="gdrive-song-count-1">0</div><div class="cloud-stat-label">Canciones</div></div>
+        <div class="cloud-stat"><div class="cloud-stat-num" id="gdrive-album-count-1">0</div><div class="cloud-stat-label">Álbumes</div></div>
+      </div>
+      <div style="padding:0 18px 16px">
+        <button class="cloud-connect-btn" id="gdrive-btn-1" onclick="connectGoogleDrive(1)" style="width:100%" disabled>Segunda cuenta</button>
       </div>
     </div>
 
@@ -1730,55 +1750,97 @@ window.SonattaUI = {
   }
 };
 
-// ── Restaurar Drive automáticamente con refresh_token ─────────────────────
+// ── Restaurar ambos slots de Drive automáticamente ────────────────────────
 async function checkAndRestoreDrive(uid) {
   try {
     const snap = await window.SonattaApp.getDoc('users', uid);
     if (!snap.exists()) return;
     const data = snap.data();
-    if (!data.gdrive_connected || !data.gdrive_refresh_token) return;
+    // Restaurar slot 0 y slot 1 si existen
+    for (const slot of [0, 1]) {
+      const connected = data[`gdrive_slot${slot}_connected`];
+      const refreshToken = data[`gdrive_slot${slot}_refresh_token`];
+      const email = data[`gdrive_slot${slot}_email`];
+      if (!connected || !refreshToken) continue;
+      restoreDriveSlot(slot, refreshToken, email);
+    }
+    // Compat legado (slot 0 con keys viejas) — limpiar y pedir reconexión manual
+    if (!data.gdrive_slot0_connected && data.gdrive_connected) {
+      // Tenía Drive conectado con sistema viejo — mostrar email pero pedir reconexión
+      const emailEl = document.getElementById('gdrive-email-0');
+      const pill    = document.getElementById('gdrive-pill-0');
+      const btn     = document.getElementById('gdrive-btn-0');
+      if (emailEl && data.gdrive_email) emailEl.textContent = data.gdrive_email;
+      if (pill)  { pill.textContent = 'Reconectar'; pill.className = 'cloud-status-pill off'; }
+      if (btn)   { btn.textContent = 'Reconectar Drive'; btn.disabled = false; }
+      // Limpiar keys viejas de Firestore
+      const user = window.SonattaApp?.currentUser;
+      if (user) window.SonattaApp.saveDoc('users', user.uid, {
+        gdrive_connected: false, gdrive_email: '', gdrive_refresh_token: ''
+      });
+    }
+  } catch(e) { console.log('No se pudo restaurar Drive:', e.message); }
+}
+
+async function restoreDriveSlot(slot, refreshToken, email) {
+  try {
 
     // Mostrar estado "reconectando" en la card
-    const pill = document.getElementById('gdrive-pill');
-    const btn  = document.getElementById('gdrive-btn');
-    const emailEl = document.getElementById('gdrive-email');
-    if (emailEl) emailEl.textContent = data.gdrive_email || 'Google Drive';
+    const pill = document.getElementById(`gdrive-pill-${slot}`);
+    const btn  = document.getElementById(`gdrive-btn-${slot}`);
+    const emailEl = document.getElementById(`gdrive-email-${slot}`);
+    if (emailEl) emailEl.textContent = email || `Google Drive #${slot+1}`;
     if (pill) { pill.textContent = 'Reconectando...'; pill.className = 'cloud-status-pill off'; }
     if (btn)  { btn.textContent = 'Reconectando...'; btn.disabled = true; }
 
-    // Usar el refresh_token para obtener un nuevo access_token via Worker
     const res = await fetch(WORKER_URL + '/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: data.gdrive_refresh_token }),
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
     const result = await res.json();
 
     if (result.error) {
-      // Refresh token inválido — pedir reconexión manual
-      if (pill) { pill.textContent = 'Sesión expirada'; pill.className = 'cloud-status-pill off'; }
-      if (btn)  { btn.textContent = 'Reconectar Drive'; btn.disabled = false; }
-      showToast('Toca "Reconectar Drive" para continuar', 'error');
+      if (pill) { pill.textContent = 'Reconectar'; pill.className = 'cloud-status-pill off'; }
+      if (btn)  { btn.textContent = 'Reconectar Drive'; btn.disabled = false; btn.classList.remove('connected'); }
+      // Limpiar token inválido de Firestore
+      const user = window.SonattaApp?.currentUser;
+      if (user) {
+        const upd = {};
+        upd[`gdrive_slot${slot}_connected`] = false;
+        upd[`gdrive_slot${slot}_refresh_token`] = '';
+        window.SonattaApp.saveDoc('users', user.uid, upd);
+      }
       return;
     }
 
-    // ✅ Token renovado — Drive conectado sin intervención del usuario
-    gdriveToken     = result.access_token;
-    gdriveConnected = true;
-    gdriveUserEmail = data.gdrive_email || 'Google Drive';
+    // ✅ Token renovado
+    driveAccounts[slot] = {
+      connected: true, token: result.access_token,
+      refreshToken, email: email || `Google Drive #${slot+1}`,
+      songs: [], slot, timer: null
+    };
 
-    updateGdriveCard(true, gdriveUserEmail, 0);
+    if (slot === 0) { gdriveToken = result.access_token; gdriveConnected = true; gdriveUserEmail = email; }
+
+    // Habilitar slot 1 si slot 0 está listo
+    if (slot === 0) {
+      const btn1 = document.getElementById('gdrive-btn-1');
+      const card1 = document.getElementById('gdrive-card-1');
+      if (btn1) { btn1.disabled = false; btn1.textContent = 'Conectar segunda cuenta'; }
+      if (card1) card1.style.opacity = '1';
+    }
+
+    updateDriveCard(slot, true, email, 0);
     if (btn) { btn.textContent = 'Desconectar'; btn.classList.add('connected'); btn.disabled = false; }
-    showToast('Google Drive reconectado automáticamente ✅');
+    showToast(`Google Drive #${slot+1} reconectado ✅`);
 
-    // Programar renovación automática cada 55 min
-    scheduleTokenRefresh(data.gdrive_refresh_token);
-
-    await loadGoogleDriveFiles();
+    scheduleTokenRefresh(refreshToken, slot);
+    await loadGoogleDriveFiles(slot);
 
   } catch(e) {
-    console.log('No se pudo restaurar Drive:', e.message);
-    const btn = document.getElementById('gdrive-btn');
+    console.log(`No se pudo restaurar Drive #${slot+1}:`, e.message);
+    const btn = document.getElementById(`gdrive-btn-${slot}`);
     if (btn) { btn.textContent = 'Conectar Google Drive'; btn.disabled = false; }
   }
 }
@@ -2210,64 +2272,65 @@ const GDRIVE_SCOPES     = 'https://www.googleapis.com/auth/drive.readonly https:
 const WORKER_URL        = 'https://sonatta-oauth.ronndu-cursosvarios.workers.dev';
 const MUSIC_EXTENSIONS  = ['.mp3','.flac','.wav','.ogg','.m4a','.aac','.wma','.opus'];
 const REDIRECT_URI      = 'https://ronnducorpvarios.github.io/Sonatta-Resurrection/';
+const MAX_DRIVE_ACCOUNTS = 2;
 
-let gdriveToken     = null;
+// Sistema multi-cuenta: array de cuentas Drive
+// Cada cuenta: { token, email, refreshToken, songs[], timer, slot: 0|1 }
+let driveAccounts = [null, null]; // slot 0 y slot 1
+let gdriveToken     = null; // compatibilidad legado (apunta a cuenta activa)
 let gdriveConnected = false;
 let gdriveUserEmail = '';
 let gdriveRefreshTimer = null;
 
-// ── Abrir popup OAuth con authorization_code ──────────────────────────────
-async function connectGoogleDrive() {
-  const btn = document.getElementById('gdrive-btn');
-  if (gdriveConnected) { disconnectGoogleDrive(); return; }
+// ── Abrir popup OAuth — slot 0 o 1 ───────────────────────────────────────
+async function connectGoogleDrive(slot = 0) {
+  const btn = document.getElementById(`gdrive-btn-${slot}`);
+  const acc = driveAccounts[slot];
 
-  btn.textContent = 'Conectando...';
-  btn.disabled = true;
+  // Si ya está conectado, desconectar
+  if (acc && acc.connected) { disconnectGoogleDrive(slot); return; }
 
-  // Construir URL de autorización de Google (con access_type=offline para refresh_token)
+  if (btn) { btn.textContent = 'Conectando...'; btn.disabled = true; }
+
   const params = new URLSearchParams({
     client_id:     GDRIVE_CLIENT_ID,
     redirect_uri:  REDIRECT_URI,
     response_type: 'code',
     scope:         GDRIVE_SCOPES,
     access_type:   'offline',
-    prompt:        'consent',
+    prompt:        'consent select_account', // forzar selección de cuenta
+    state:         String(slot),
   });
 
   const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  const popup = window.open(authUrl, `gdrive_auth_${slot}`, 'width=500,height=620,left=200,top=100');
 
-  // Abrir popup
-  const popup = window.open(authUrl, 'gdrive_auth', 'width=500,height=620,left=200,top=100');
-
-  // Escuchar el código que llega via postMessage desde la página de callback
   const handleMessage = async (event) => {
     if (event.origin !== 'https://ronnducorpvarios.github.io') return;
     if (!event.data || event.data.type !== 'gdrive_code') return;
+    // Verificar que es para este slot
+    if (String(event.data.slot) !== String(slot)) return;
     window.removeEventListener('message', handleMessage);
     popup && popup.close();
-
-    const code = event.data.code;
-    if (!code) {
+    if (!event.data.code) {
       showToast('Error: no se recibió código', 'error');
-      btn.textContent = 'Conectar Google Drive'; btn.disabled = false;
+      if (btn) { btn.textContent = 'Conectar Google Drive'; btn.disabled = false; }
       return;
     }
-    await exchangeCodeForTokens(code);
+    await exchangeCodeForTokens(event.data.code, slot);
   };
   window.addEventListener('message', handleMessage);
 
-  // Timeout por si el usuario cierra el popup
   setTimeout(() => {
     window.removeEventListener('message', handleMessage);
-    if (!gdriveConnected) {
-      btn.textContent = 'Conectar Google Drive'; btn.disabled = false;
-    }
+    const b = document.getElementById(`gdrive-btn-${slot}`);
+    if (b && !driveAccounts[slot]?.connected) { b.textContent = 'Conectar Google Drive'; b.disabled = false; }
   }, 120000);
 }
 
 // ── Intercambiar code por tokens via Worker ────────────────────────────────
-async function exchangeCodeForTokens(code) {
-  const btn = document.getElementById('gdrive-btn');
+async function exchangeCodeForTokens(code, slot = 0) {
+  const btn = document.getElementById(`gdrive-btn-${slot}`);
   try {
     const res = await fetch(WORKER_URL + '/exchange', {
       method: 'POST',
@@ -2277,45 +2340,65 @@ async function exchangeCodeForTokens(code) {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    gdriveToken     = data.access_token;
-    gdriveConnected = true;
-
-    // Obtener email del usuario
+    // Obtener email
     const info = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: 'Bearer ' + gdriveToken }
+      headers: { Authorization: 'Bearer ' + data.access_token }
     }).then(r => r.json());
-    gdriveUserEmail = info.email || 'Google Drive';
+    const email = info.email || `Google Drive #${slot+1}`;
 
-    // Guardar refresh_token + email en Firestore
-    const user = window.SonattaApp && window.SonattaApp.currentUser;
-    if (user && data.refresh_token) {
-      await window.SonattaApp.saveDoc('users', user.uid, {
-        gdrive_connected:     true,
-        gdrive_email:         gdriveUserEmail,
-        gdrive_refresh_token: data.refresh_token,
-      });
+    // Verificar que no sea la misma cuenta ya conectada en el otro slot
+    const otherSlot = slot === 0 ? 1 : 0;
+    if (driveAccounts[otherSlot]?.email === email) {
+      showToast('Esta cuenta ya está conectada en otro slot', 'error');
+      if (btn) { btn.textContent = 'Conectar Google Drive'; btn.disabled = false; }
+      return;
     }
 
-    updateGdriveCard(true, gdriveUserEmail, 0);
-    btn.textContent = 'Desconectar'; btn.classList.add('connected'); btn.disabled = false;
-    showToast('Google Drive conectado ✅', 'success');
+    // Guardar en el slot
+    driveAccounts[slot] = {
+      connected: true, token: data.access_token,
+      refreshToken: data.refresh_token, email, songs: [], slot,
+      timer: null
+    };
 
-    // Programar auto-refresh cada 55 minutos
-    scheduleTokenRefresh(data.refresh_token);
+    // Guardar en Firestore
+    const user = window.SonattaApp?.currentUser;
+    if (user && data.refresh_token) {
+      const update = {};
+      update[`gdrive_slot${slot}_email`]         = email;
+      update[`gdrive_slot${slot}_connected`]     = true;
+      update[`gdrive_slot${slot}_refresh_token`] = data.refresh_token;
+      await window.SonattaApp.saveDoc('users', user.uid, update);
+    }
 
-    await loadGoogleDriveFiles();
+    updateDriveCard(slot, true, email, 0);
+    if (btn) { btn.textContent = 'Desconectar'; btn.classList.add('connected'); btn.disabled = false; }
+
+    // Habilitar slot 1 si se conectó el slot 0
+    if (slot === 0) {
+      const btn1 = document.getElementById('gdrive-btn-1');
+      const card1 = document.getElementById('gdrive-card-1');
+      if (btn1) { btn1.disabled = false; btn1.textContent = 'Conectar segunda cuenta'; }
+      if (card1) card1.style.opacity = '1';
+    }
+
+    showToast(`Google Drive #${slot+1} conectado ✅`, 'success');
+    scheduleTokenRefresh(data.refresh_token, slot);
+    await loadGoogleDriveFiles(slot);
+
+    // Legacy compat
+    if (slot === 0) { gdriveToken = data.access_token; gdriveConnected = true; gdriveUserEmail = email; }
 
   } catch(e) {
     showToast('Error al conectar: ' + e.message, 'error');
-    btn.textContent = 'Conectar Google Drive'; btn.disabled = false;
+    if (btn) { btn.textContent = 'Conectar Google Drive'; btn.disabled = false; }
   }
 }
 
-// ── Refresh automático del token ───────────────────────────────────────────
-function scheduleTokenRefresh(refreshToken) {
-  if (gdriveRefreshTimer) clearInterval(gdriveRefreshTimer);
-  // Renovar cada 55 min (el token dura 60)
-  gdriveRefreshTimer = setInterval(async () => {
+// ── Refresh automático del token por slot ─────────────────────────────────
+function scheduleTokenRefresh(refreshToken, slot = 0) {
+  if (driveAccounts[slot]?.timer) clearInterval(driveAccounts[slot].timer);
+  const timer = setInterval(async () => {
     try {
       const res = await fetch(WORKER_URL + '/refresh', {
         method: 'POST',
@@ -2323,53 +2406,67 @@ function scheduleTokenRefresh(refreshToken) {
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
       const data = await res.json();
-      if (data.access_token) {
-        gdriveToken = data.access_token;
-        console.log('Token de Drive renovado automáticamente ✅');
+      if (data.access_token && driveAccounts[slot]) {
+        driveAccounts[slot].token = data.access_token;
+        if (slot === 0) gdriveToken = data.access_token;
+        console.log(`Token Drive #${slot+1} renovado ✅`);
       }
-    } catch(e) {
-      console.warn('Error renovando token de Drive:', e);
-    }
+    } catch(e) { console.warn(`Error renovando token Drive #${slot+1}:`, e); }
   }, 55 * 60 * 1000);
+  if (driveAccounts[slot]) driveAccounts[slot].timer = timer;
 }
 
-// ── Desconectar ────────────────────────────────────────────────────────────
-async function disconnectGoogleDrive() {
-  if (gdriveRefreshTimer) { clearInterval(gdriveRefreshTimer); gdriveRefreshTimer = null; }
+// ── Desconectar por slot ───────────────────────────────────────────────────
+async function disconnectGoogleDrive(slot = 0) {
+  const acc = driveAccounts[slot];
+  if (!acc) return;
 
-  // Revocar token en Google
-  if (gdriveToken) {
+  // Revocar token
+  if (acc.token) {
     fetch(WORKER_URL + '/revoke', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: gdriveToken }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: acc.token }),
     }).catch(() => {});
   }
-
-  gdriveToken = null; gdriveConnected = false; gdriveUserEmail = '';
+  if (acc.timer) clearInterval(acc.timer);
 
   // Limpiar Firestore
-  const user = window.SonattaApp && window.SonattaApp.currentUser;
+  const user = window.SonattaApp?.currentUser;
   if (user) {
-    window.SonattaApp.saveDoc('users', user.uid, {
-      gdrive_connected: false, gdrive_email: '', gdrive_refresh_token: ''
-    });
+    const update = {};
+    update[`gdrive_slot${slot}_connected`]     = false;
+    update[`gdrive_slot${slot}_email`]         = '';
+    update[`gdrive_slot${slot}_refresh_token`] = '';
+    window.SonattaApp.saveDoc('users', user.uid, update);
   }
 
-  const btn = document.getElementById('gdrive-btn');
-  btn.textContent = 'Conectar Google Drive'; btn.classList.remove('connected'); btn.disabled = false;
-  updateGdriveCard(false, '', 0);
-  allDriveSongs = [];
+  driveAccounts[slot] = null;
+
+  // Si desconecta slot 0, deshabilitar slot 1 también
+  if (slot === 0) {
+    if (driveAccounts[1]) disconnectGoogleDrive(1);
+    gdriveToken = null; gdriveConnected = false; gdriveUserEmail = '';
+    const card1 = document.getElementById('gdrive-card-1');
+    const btn1  = document.getElementById('gdrive-btn-1');
+    if (card1) card1.style.opacity = '0.6';
+    if (btn1)  { btn1.textContent = 'Segunda cuenta'; btn1.disabled = true; }
+  }
+
+  updateDriveCard(slot, false, '', 0);
+  // Reconstruir allDriveSongs sin las canciones de este slot
+  allDriveSongs = allDriveSongs.filter(s => s.driveSlot !== slot);
   renderSongsScreen();
-  showToast('Google Drive desconectado');
+  showToast(`Google Drive #${slot+1} desconectado`);
 }
 
 // ── Cargar archivos de música desde Drive ────────────────────────────────────
-async function loadGoogleDriveFiles() {
-  // Actualizar UI de la card
-  const countEl = document.getElementById('gdrive-song-count');
+async function loadGoogleDriveFiles(slot = 0) {
+  const acc = driveAccounts[slot];
+  if (!acc || !acc.token) return;
+  const token = acc.token;
+  const countEl = document.getElementById(`gdrive-song-count-${slot}`);
   if (countEl) countEl.textContent = '...';
-  showToast('Buscando música en Drive...');
+  showToast(`Buscando música en Drive #${slot+1}...`);
 
   try {
     // Buscar TODOS los archivos de audio con paginación
@@ -2387,7 +2484,7 @@ async function loadGoogleDriveFiles() {
       });
 
       const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
-        headers: { Authorization: 'Bearer ' + gdriveToken }
+        headers: { Authorization: 'Bearer ' + token }
       });
       const data = await res.json();
 
@@ -2415,88 +2512,20 @@ async function loadGoogleDriveFiles() {
     if (countEl) countEl.textContent = data.files.length;
     // Solo archivos de tu propio Drive (no compartidos) — trashed=false ya lo filtra
     // Poblar allDriveSongs para la pantalla Canciones
-    allDriveSongs = data.files.map(f => ({
-      id: 'gdrive_' + f.id,
+    // Mantener canciones de otros slots, reemplazar las de este slot
+    const newSongs = data.files.map(f => ({
+      id: `gdrive_${slot}_${f.id}`,
       driveId: f.id,
+      driveSlot: slot,
       title: f.name.replace(/\.[^.]+$/, ''),
       name: f.name,
       artist: '',
       album: '',
-      coverUrl: f.thumbnailLink || null,
+      coverUrl: f.thumbnailLink ? f.thumbnailLink.replace('=s220', '=s400') : null,
       source: 'gdrive'
     }));
-    updateGdriveCard(true, gdriveUserEmail || 'Google Drive', data.files.length);
-    // canciones en allDriveSongs, se muestran en pantalla Canciones
-    // Actualizar pantalla canciones si está visible
-    if (document.getElementById('songsScreen').classList.contains('active')) renderSongsScreen();
-
-  } catch(e) {
-    listEl.innerHTML = '<div class="cloud-loading">Error al cargar archivos</div>';
-    showToast('Error al leer Drive: ' + e.message, 'error');
-  }
-}
-
-async function refreshGoogleDrive() {
-  if (!gdriveConnected) return;
-  await loadGoogleDriveFiles();
-}
-
-// ── Renderizar canciones de Drive ─────────────────────────────────────────────
-function renderDriveSongs(files) {
-  const listEl = document.getElementById('gdrive-songs-list');
-  listEl.innerHTML = files.map((f, i) => {
-    const title = f.name.replace(/\.[^.]+$/, '');
-    const ext = f.name.split('.').pop().toUpperCase();
-    const cover = f.thumbnailLink
-      ? `<img src="${f.thumbnailLink}" alt="${escHtml(title)}">`
-      : '🎵';
-    return `
-      <div class="cloud-song-item" onclick="playDriveSong('${f.id}', '${escHtml(f.name)}', '${f.thumbnailLink || ''}', ${i})">
-        <div class="cloud-song-cover">${cover}</div>
-        <div class="cloud-song-info">
-          <div class="cloud-song-name">${escHtml(title)}</div>
-          <div class="cloud-song-meta">Google Drive · ${ext}</div>
-        </div>
-        <span style="font-size:0.75rem;color:var(--text3)">▶</span>
-      </div>`;
-  }).join('');
-}
-
-// ── Reproducir canción desde Drive ────────────────────────────────────────────
-async function playDriveSong(fileId, fileName, thumbnailLink, index) {
-  if (!gdriveToken) { showToast('Reconecta Google Drive', 'error'); return; }
-
-  const title = fileName.replace(/\.[^.]+$/, '');
-  showToast(`Cargando: ${title}...`);
-
-  try {
-    // Obtener URL de descarga directa
-    const streamUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-
-    const song = {
-      id: 'gdrive_' + fileId,
-      title,
-      artist: 'Google Drive',
-      album: '',
-      duration: 0,
-      coverUrl: thumbnailLink || null,
-      streamUrl,
-      source: 'gdrive',
-      driveToken: gdriveToken
-    };
-
-    // Agregar a la lista global y reproducir
-    const existingIdx = window.SonattaApp.songs.findIndex(s => s.id === song.id);
-    if (existingIdx === -1) window.SonattaApp.songs.push(song);
-
-    const app = window.SonattaApp;
-    app.currentSong = song;
-    app.currentIndex = index;
-
-    // Reproducir con token en el header via fetch + blob
-    const response = await fetch(streamUrl, {
-      headers: { Authorization: 'Bearer ' + gdriveToken }
-    });
+    allDriveSongs = allDriveSongs.filter(s => s.driveSlot !== slot).concat(newSongs);
+    if (driveAccounts[slot]) driveAccounts[slot].songs = newSongs;
 
     if (!response.ok) throw new Error('No se pudo acceder al archivo');
 
@@ -2583,7 +2612,7 @@ function renderSongsScreen() {
   if (songsView === 'grid') {
     container.className = 'songs-grid-view';
     container.innerHTML = songs.map((s, i) => {
-      const cover = s.coverUrl ? `<img src="${s.coverUrl}" alt="">` : '🎵';
+      const cover = s.coverUrl ? `<img src="${s.coverUrl}" alt="" onerror="loadAuthCover(this,'${s.driveId}',${s.driveSlot||0})" crossorigin="anonymous">` : '<span style="font-size:1.4rem">🎵</span>';
       const src = s.source === 'gdrive' ? '🔵' : '📱';
       return `<div class="song-grid-card ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
         <div class="song-grid-cover">${cover}<div class="play-overlay">▶</div></div>
@@ -2596,7 +2625,7 @@ function renderSongsScreen() {
   } else {
     container.className = 'songs-list-view';
     container.innerHTML = songs.map((s, i) => {
-      const cover = s.coverUrl ? `<img src="${s.coverUrl}" alt="">` : '🎵';
+      const cover = s.coverUrl ? `<img src="${s.coverUrl}" alt="" onerror="loadAuthCover(this,'${s.driveId}',${s.driveSlot||0})" crossorigin="anonymous">` : '<span style="font-size:1.4rem">🎵</span>';
       const src = s.source === 'gdrive' ? '🔵 Drive' : '📱 Local';
       const isFav = favorites.includes(s.id);
       return `<div class="song-row ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
@@ -2624,8 +2653,10 @@ async function playSongFromList(index) {
     if (!gdriveToken) { showToast('Reconecta Google Drive', 'error'); return; }
     showToast('Cargando: ' + (song.title||song.name) + '...');
     try {
+      const slotAcc = driveAccounts[song.driveSlot || 0];
+      const tokenToUse = slotAcc?.token || gdriveToken;
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${song.driveId}?alt=media`, {
-        headers: { Authorization: 'Bearer ' + gdriveToken }
+        headers: { Authorization: 'Bearer ' + tokenToUse }
       });
       if (!res.ok) throw new Error('Sin acceso');
       const blob = await res.blob();
@@ -2749,34 +2780,64 @@ function ctxRemoveSong() {
 }
 
 // ══ NUBES — actualizar card de Drive ═══════════════════════════════
-function updateGdriveCard(connected, email, songCount) {
-  const pill    = document.getElementById('gdrive-pill');
-  const emailEl = document.getElementById('gdrive-email');
-  const stats   = document.getElementById('gdrive-stats');
-  const btn     = document.getElementById('gdrive-btn');
-  const countEl = document.getElementById('gdrive-song-count');
-  const albums  = document.getElementById('gdrive-album-count');
+// updateDriveCard por slot
+function updateDriveCard(slot, connected, email, songCount) {
+  const pill    = document.getElementById(`gdrive-pill-${slot}`);
+  const emailEl = document.getElementById(`gdrive-email-${slot}`);
+  const stats   = document.getElementById(`gdrive-stats-${slot}`);
+  const countEl = document.getElementById(`gdrive-song-count-${slot}`);
+  const albums  = document.getElementById(`gdrive-album-count-${slot}`);
 
   if (pill)    { pill.textContent = connected ? 'Conectado' : 'Desconectado'; pill.className = 'cloud-status-pill ' + (connected ? 'on' : 'off'); }
   if (emailEl) emailEl.textContent = email || '—';
   if (stats)   stats.style.display = connected ? 'flex' : 'none';
-  if (btn)     { btn.textContent = connected ? 'Desconectar' : 'Conectar Google Drive'; btn.className = 'cloud-connect-btn' + (connected ? ' connected' : ''); }
   if (countEl) countEl.textContent = songCount || 0;
   if (albums)  albums.textContent = songCount ? Math.max(1, Math.floor(songCount / 10)) : '—';
 
   const songsScreen = document.getElementById('songsScreen');
   if (songsScreen && songsScreen.classList.contains('active')) renderSongsScreen();
 }
+
+// Compat legado
+function updateGdriveCard(connected, email, songCount) { updateDriveCard(0, connected, email, songCount); }
 </script>
 
 
 <!-- GLOBAL NAV -->
-<nav class="bottom-nav" id="globalNav">
+<nav class="bottom-nav" id="globalNav" style="display:none">
   <button class="nav-item" id="gnav-home" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
   <button class="nav-item" id="gnav-clouds" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
   <button class="nav-item" id="gnav-songs" onclick="switchView('songs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Canciones</span></button>
   <button class="nav-item" id="gnav-playlists" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="nav-label">Playlists</span></button>
   <button class="nav-item" id="gnav-settings" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
 </nav>
+
+
+<script>
+// ── Cargar carátula autenticada si la URL normal falla ─────────────────────
+async function loadAuthCover(imgEl, driveId, slot) {
+  if (!driveId) return;
+  const acc = driveAccounts[slot];
+  if (!acc || !acc.token) return;
+  try {
+    // Obtener thumbnail autenticado
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${driveId}?fields=thumbnailLink`,
+      { headers: { Authorization: 'Bearer ' + acc.token } }
+    );
+    const data = await res.json();
+    if (data.thumbnailLink) {
+      // Descargar la imagen con el token y convertir a blob URL
+      const imgRes = await fetch(data.thumbnailLink.replace('=s220','=s400'), {
+        headers: { Authorization: 'Bearer ' + acc.token }
+      });
+      if (imgRes.ok) {
+        const blob = await imgRes.blob();
+        imgEl.src = URL.createObjectURL(blob);
+      }
+    }
+  } catch(e) { /* mantener ícono por defecto */ }
+}
+</script>
 </body>
 </html>
