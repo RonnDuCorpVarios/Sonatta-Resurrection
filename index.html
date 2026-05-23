@@ -95,6 +95,9 @@
 
   window.firebaseReady = true;
   document.dispatchEvent(new Event('firebaseReady'));
+  // Marcar nav inicial
+  const initNav = document.getElementById('gnav-home');
+  if (initNav) initNav.classList.add('active');
 </script>
 
 <style>
@@ -146,10 +149,13 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 ════════════════════════════════════════════════ */
 .screen {
   display: none;
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  width: 100%; height: 100%;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  bottom: 64px; /* altura del nav */
+  width: 100%;
+  flex-direction: column;
   overflow: hidden;
+  background: var(--bg);
 }
 .screen.active { display: flex; }
 
@@ -455,13 +461,13 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 
 /* NAV BOTTOM */
-.nav-bottom {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  height: 70px; background: rgba(10,10,15,0.95);
+.nav-bottom, .bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 64px; background: rgba(10,10,15,0.97);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-around;
-  padding: 0 8px; z-index: 100;
+  padding: 0 4px; z-index: 500;
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 .nav-item {
@@ -1016,6 +1022,151 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   animation: spin 0.8s linear infinite;
 }
 
+
+/* ── PANTALLA CANCIONES ─────────────────────────── */
+.songs-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg2); position: sticky; top: 0; z-index: 10;
+}
+.view-toggle-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); padding: 6px; border-radius: 8px;
+  font-size: 1rem; transition: color 0.2s, background 0.2s;
+}
+.view-toggle-btn.active { color: var(--accent2); background: rgba(124,92,252,0.12); }
+.songs-source-filter {
+  display: flex; gap: 6px; flex: 1; overflow-x: auto;
+  scrollbar-width: none;
+}
+.source-chip {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  color: var(--text2); white-space: nowrap; transition: all 0.2s;
+}
+.source-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Lista de canciones */
+.songs-list-view .song-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; cursor: pointer;
+  transition: background 0.15s; border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.songs-list-view .song-row:hover { background: var(--bg3); }
+.songs-list-view .song-row.playing { background: rgba(124,92,252,0.1); }
+.song-row-cover {
+  width: 46px; height: 46px; border-radius: 10px;
+  background: var(--bg3); flex-shrink: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+}
+.song-row-cover img { width: 100%; height: 100%; object-fit: cover; }
+.song-row-info { flex: 1; min-width: 0; }
+.song-row-title { font-size: 0.9rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.song-row-meta { font-size: 0.75rem; color: var(--text3); margin-top: 2px; }
+.song-row-menu {
+  background: none; border: none; color: var(--text3);
+  font-size: 1.2rem; cursor: pointer; padding: 6px; border-radius: 8px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.song-row:hover .song-row-menu { opacity: 1; }
+
+/* Grid de canciones */
+.songs-grid-view {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px; padding: 16px;
+}
+.song-grid-card {
+  background: var(--card); border-radius: 14px;
+  overflow: hidden; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid var(--border);
+}
+.song-grid-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.song-grid-card.playing { border-color: var(--accent); }
+.song-grid-cover {
+  width: 100%; aspect-ratio: 1; background: var(--bg3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; overflow: hidden; position: relative;
+}
+.song-grid-cover img { width: 100%; height: 100%; object-fit: cover; }
+.song-grid-cover .play-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s; font-size: 2rem;
+}
+.song-grid-card:hover .play-overlay { opacity: 1; }
+.song-grid-info { padding: 10px; }
+.song-grid-title { font-size: 0.8rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.song-grid-meta { font-size: 0.7rem; color: var(--text3); margin-top: 2px; }
+
+/* Menú contextual */
+.song-context-menu {
+  position: fixed; background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 6px; min-width: 180px;
+  z-index: 999; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  display: none;
+}
+.song-context-menu.visible { display: block; }
+.ctx-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 10px; cursor: pointer;
+  font-size: 0.875rem; color: var(--text); transition: background 0.15s;
+}
+.ctx-item:hover { background: var(--bg3); }
+.ctx-item.danger { color: var(--red); }
+.ctx-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+/* Reproductor en pantalla canciones */
+#songsPlayer {
+  position: sticky; bottom: 0; left: 0; right: 0;
+  background: var(--bg2); border-top: 1px solid var(--border);
+  padding: 12px 16px 20px; display: none;
+}
+.sp-song-info { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.sp-cover {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: var(--bg3); overflow: hidden; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+}
+.sp-cover img { width: 100%; height: 100%; object-fit: cover; }
+.sp-texts { flex: 1; min-width: 0; }
+.sp-title { font-size: 0.9rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-artist { font-size: 0.75rem; color: var(--text3); }
+.sp-controls { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 10px; }
+.sp-btn { background: none; border: none; color: var(--text2); font-size: 1.4rem; cursor: pointer; transition: color 0.2s, transform 0.1s; }
+.sp-btn:hover { color: var(--text); transform: scale(1.1); }
+.sp-btn.main { font-size: 2rem; color: var(--text); }
+.sp-progress { display: flex; align-items: center; gap: 8px; }
+.sp-time { font-size: 0.7rem; color: var(--text3); width: 32px; }
+.sp-bar-wrap { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; cursor: pointer; }
+.sp-bar-fill { height: 100%; background: var(--accent2); border-radius: 2px; width: 0%; transition: width 0.1s linear; }
+
+/* ── PANTALLA NUBES REDISEÑADA ─────────────── */
+.cloud-account-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 18px; margin-bottom: 14px; overflow: hidden;
+}
+.cloud-account-header {
+  display: flex; align-items: center; gap: 14px; padding: 18px;
+}
+.cloud-account-badge {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.cloud-account-details { flex: 1; }
+.cloud-account-name { font-weight: 700; font-size: 1rem; color: var(--text); }
+.cloud-account-email { font-size: 0.78rem; color: var(--text3); margin-top: 2px; }
+.cloud-account-stats { display: flex; gap: 16px; padding: 0 18px 16px; }
+.cloud-stat { text-align: center; }
+.cloud-stat-num { font-size: 1.2rem; font-weight: 800; color: var(--text); }
+.cloud-stat-label { font-size: 0.7rem; color: var(--text3); margin-top: 2px; }
+.cloud-status-pill {
+  padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+}
+.cloud-status-pill.on { background: rgba(52,211,153,0.15); color: var(--green); }
+.cloud-status-pill.off { background: var(--bg3); color: var(--text3); }
+
 </style>
 </head>
 <body>
@@ -1202,12 +1353,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
     </div>
     <div class="mini-progress"><div class="mini-progress-bar" id="miniProgressBar"></div></div>
   </div>
-  <nav class="nav-bottom">
-    <button class="nav-item active" id="nav-home" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
-    <button class="nav-item" id="nav-clouds" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
-    <button class="nav-item" id="nav-playlists" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Playlists</span></button>
-    <button class="nav-item" id="nav-settings" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
-  </nav>
+
 </div>
 
 <div id="fullPlayer" style="position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column;display:none;overflow:hidden;">
@@ -1249,56 +1395,90 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   </div>
 </div>
 
+<div id="songsScreen" class="screen">
+  <!-- Toolbar -->
+  <div class="songs-toolbar">
+    <div class="songs-source-filter" id="sourceFilter">
+      <div class="source-chip active" onclick="filterSource('all',this)">Todas</div>
+      <div class="source-chip" onclick="filterSource('local',this)">📱 Local</div>
+      <div class="source-chip" onclick="filterSource('gdrive',this)">🔵 Drive</div>
+    </div>
+    <button class="view-toggle-btn active" id="btnList" onclick="setSongsView('list')" title="Lista">☰</button>
+    <button class="view-toggle-btn" id="btnGrid" onclick="setSongsView('grid')" title="Cuadrícula">⊞</button>
+  </div>
+
+  <!-- Lista / Grid -->
+  <div id="songsList" style="flex:1;overflow-y:auto;padding-bottom:8px;">
+    <div id="songsListInner" class="songs-list-view"></div>
+  </div>
+
+  <!-- Reproductor sticky -->
+  <div id="songsPlayer">
+    <div class="sp-song-info">
+      <div class="sp-cover" id="spCover">🎵</div>
+      <div class="sp-texts">
+        <div class="sp-title" id="spTitle">Sin reproducción</div>
+        <div class="sp-artist" id="spArtist">—</div>
+      </div>
+      <button class="sp-btn" style="font-size:1.2rem" onclick="openFullPlayer()">⤢</button>
+    </div>
+    <div class="sp-controls">
+      <button class="sp-btn" onclick="toggleShuffle()">🔀</button>
+      <button class="sp-btn" onclick="prevSong()">⏮</button>
+      <button class="sp-btn main" id="spPlayBtn" onclick="togglePlay()">▶</button>
+      <button class="sp-btn" onclick="nextSong()">⏭</button>
+      <button class="sp-btn" onclick="toggleRepeat()">🔁</button>
+    </div>
+    <div class="sp-progress">
+      <span class="sp-time" id="spCurrentTime">0:00</span>
+      <div class="sp-bar-wrap" onclick="seekSP(event)">
+        <div class="sp-bar-fill" id="spBarFill"></div>
+      </div>
+      <span class="sp-time" id="spDuration">0:00</span>
+    </div>
+  </div>
+</div>
+
 <div id="cloudsScreen" class="screen">
   <div class="content-area">
-    <div class="screen-header"><h2>Nubes ☁️</h2><p>Conecta tus servicios de nube</p></div>
+    <div class="screen-header"><h2>Nubes ☁️</h2><p>Tus servicios conectados</p></div>
 
-    <!-- GOOGLE DRIVE -->
-    <div class="cloud-card" id="gdrive-card">
-      <div class="cloud-card-header">
-        <div class="cloud-icon gdrive-icon">
+    <!-- GOOGLE DRIVE ACCOUNT CARD -->
+    <div class="cloud-account-card" id="gdrive-card">
+      <div class="cloud-account-header">
+        <div class="cloud-account-badge gdrive-icon">
           <svg viewBox="0 0 87.3 78" width="28" height="28"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.4c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 52.9H27.5L13.75 76.7c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.45l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 27.9h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
         </div>
-        <div class="cloud-info">
-          <div class="cloud-name">Google Drive</div>
-          <div class="cloud-status" id="gdrive-status">No conectado</div>
+        <div class="cloud-account-details">
+          <div class="cloud-account-name">Google Drive</div>
+          <div class="cloud-account-email" id="gdrive-email">—</div>
         </div>
-        <button class="cloud-connect-btn" id="gdrive-btn" onclick="connectGoogleDrive()">Conectar</button>
+        <span class="cloud-status-pill off" id="gdrive-pill">Desconectado</span>
       </div>
-      <div class="cloud-files" id="gdrive-files" style="display:none">
-        <div class="cloud-files-header">
-          <span id="gdrive-count">0 canciones encontradas</span>
-          <button class="cloud-refresh-btn" onclick="refreshGoogleDrive()">↻ Actualizar</button>
-        </div>
-        <div class="cloud-songs-list" id="gdrive-songs-list"></div>
+      <div class="cloud-account-stats" id="gdrive-stats" style="display:none">
+        <div class="cloud-stat"><div class="cloud-stat-num" id="gdrive-song-count">0</div><div class="cloud-stat-label">Canciones</div></div>
+        <div class="cloud-stat"><div class="cloud-stat-num" id="gdrive-album-count">0</div><div class="cloud-stat-label">Álbumes</div></div>
       </div>
-    </div>
-
-    <!-- ONEDRIVE — próximamente -->
-    <div class="cloud-card cloud-card-soon">
-      <div class="cloud-card-header">
-        <div class="cloud-icon onedrive-icon">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="#0078d4"><path d="M10.5 18.5H6a4 4 0 01-.7-7.93 5.5 5.5 0 0110.7-1.05A3.5 3.5 0 0118.5 15a3.5 3.5 0 01-3.5 3.5h-4.5z"/></svg>
-        </div>
-        <div class="cloud-info">
-          <div class="cloud-name">OneDrive</div>
-          <div class="cloud-status">Próximamente</div>
-        </div>
-        <button class="cloud-connect-btn" disabled>Pronto</button>
+      <div style="padding:0 18px 16px;display:flex;gap:10px" id="gdrive-actions">
+        <button class="cloud-connect-btn" id="gdrive-btn" onclick="connectGoogleDrive()" style="flex:1">Conectar Google Drive</button>
       </div>
     </div>
 
-    <!-- DROPBOX — próximamente -->
-    <div class="cloud-card cloud-card-soon">
-      <div class="cloud-card-header">
-        <div class="cloud-icon dropbox-icon">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="#0061ff"><path d="M6 2l6 3.75L6 9.5 0 5.75zm12 0l6 3.75-6 3.75-6-3.75zm-12 11l6-3.75 6 3.75-6 3.75zm12 0l6-3.75 6 3.75-6 3.75zM6 14.5l6 3.75-6 3.75-6-3.75z"/></svg>
-        </div>
-        <div class="cloud-info">
-          <div class="cloud-name">Dropbox</div>
-          <div class="cloud-status">Próximamente</div>
-        </div>
-        <button class="cloud-connect-btn" disabled>Pronto</button>
+    <!-- ONEDRIVE -->
+    <div class="cloud-account-card" style="opacity:0.5">
+      <div class="cloud-account-header">
+        <div class="cloud-account-badge onedrive-icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="#0078d4"><path d="M10.5 18.5H6a4 4 0 01-.7-7.93 5.5 5.5 0 0110.7-1.05A3.5 3.5 0 0118.5 15a3.5 3.5 0 01-3.5 3.5h-4.5z"/></svg></div>
+        <div class="cloud-account-details"><div class="cloud-account-name">OneDrive</div><div class="cloud-account-email">Próximamente</div></div>
+        <span class="cloud-status-pill off">Pronto</span>
+      </div>
+    </div>
+
+    <!-- DROPBOX -->
+    <div class="cloud-account-card" style="opacity:0.5">
+      <div class="cloud-account-header">
+        <div class="cloud-account-badge dropbox-icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="#0061ff"><path d="M6 2l6 3.75L6 9.5 0 5.75zm12 0l6 3.75-6 3.75-6-3.75zm-12 11l6-3.75 6 3.75-6 3.75zm12 0l6-3.75 6 3.75-6 3.75zM6 14.5l6 3.75-6 3.75-6-3.75z"/></svg></div>
+        <div class="cloud-account-details"><div class="cloud-account-name">Dropbox</div><div class="cloud-account-email">Próximamente</div></div>
+        <span class="cloud-status-pill off">Pronto</span>
       </div>
     </div>
   </div>
@@ -1307,17 +1487,10 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
     <button class="nav-item active" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
     <button class="nav-item" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Playlists</span></button>
     <button class="nav-item" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
-  </nav>
-</div>
+  </nav></div>
 
 <div id="playlistsScreen" class="screen">
   <div class="content-area"><div class="screen-header"><h2>Playlists 🎶</h2><p>Tus listas de reproducción</p></div><div class="empty-state"><div class="empty-icon">🎶</div><div class="empty-title">Próximamente</div><div class="empty-desc">Playlists y listas inteligentes — Parte 4</div></div></div>
-  <nav class="nav-bottom">
-    <button class="nav-item" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
-    <button class="nav-item" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
-    <button class="nav-item active" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Playlists</span></button>
-    <button class="nav-item" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
-  </nav>
 </div>
 
 <div id="settingsScreen" class="screen">
@@ -1485,7 +1658,7 @@ document.addEventListener('firebaseReady', () => {
 // VISTA SWITCHER (navegación entre secciones)
 // ═══════════════════════════════════════════
 function switchView(view) {
-  const screens = { home:'homeScreen', clouds:'cloudsScreen', playlists:'playlistsScreen', settings:'settingsScreen' };
+  const screens = { home:'homeScreen', clouds:'cloudsScreen', songs:'songsScreen', playlists:'playlistsScreen', settings:'settingsScreen' };
   showScreen(screens[view] || 'homeScreen');
   // Mover mini player y full player al screen activo si es homeScreen
   const mp = document.getElementById('miniPlayer');
@@ -1961,6 +2134,7 @@ const MUSIC_EXTENSIONS = ['.mp3','.flac','.wav','.ogg','.m4a','.aac','.wma','.op
 
 let gdriveToken = null;
 let gdriveConnected = false;
+let gdriveUserEmail = '';
 
 // ── Cargar Google Identity Services ──────────────────────────────────────────
 function loadGISScript() {
@@ -1997,6 +2171,9 @@ async function connectGoogleDrive() {
         }
         gdriveToken = response.access_token;
         gdriveConnected = true;
+        // Obtener email del usuario de Drive
+        fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + gdriveToken }})
+          .then(r => r.json()).then(info => { gdriveUserEmail = info.email || 'Google Drive'; updateGdriveCard(true, gdriveUserEmail, 0); });
         btn.textContent = 'Desconectar';
         btn.classList.add('connected');
         btn.disabled = false;
@@ -2058,7 +2235,22 @@ async function loadGoogleDriveFiles() {
     }
 
     countEl.textContent = `${data.files.length} canción(es) encontrada(s)`;
+    // Solo archivos de tu propio Drive (no compartidos) — trashed=false ya lo filtra
+    // Poblar allDriveSongs para la pantalla Canciones
+    allDriveSongs = data.files.map(f => ({
+      id: 'gdrive_' + f.id,
+      driveId: f.id,
+      title: f.name.replace(/\.[^.]+$/, ''),
+      name: f.name,
+      artist: '',
+      album: '',
+      coverUrl: f.thumbnailLink || null,
+      source: 'gdrive'
+    }));
+    updateGdriveCard(true, gdriveUserEmail || 'Google Drive', data.files.length);
     renderDriveSongs(data.files);
+    // Actualizar pantalla canciones si está visible
+    if (document.getElementById('songsScreen').classList.contains('active')) renderSongsScreen();
 
   } catch(e) {
     listEl.innerHTML = '<div class="cloud-loading">Error al cargar archivos</div>';
@@ -2155,5 +2347,257 @@ async function playDriveSong(fileId, fileName, thumbnailLink, index) {
 }
 </script>
 
+
+<!-- MENÚ CONTEXTUAL CANCIONES -->
+<div class="song-context-menu" id="songContextMenu">
+  <div class="ctx-item" onclick="ctxAddToPlaylist()"><span class="ctx-icon">➕</span>Agregar a playlist</div>
+  <div class="ctx-item" onclick="ctxToggleFavorite()"><span class="ctx-icon" id="ctxFavIcon">♡</span><span id="ctxFavText">Agregar a favoritos</span></div>
+  <div class="ctx-item" onclick="ctxPlayNext()"><span class="ctx-icon">⏭</span>Reproducir después</div>
+  <div class="ctx-item" onclick="ctxAddToQueue()"><span class="ctx-icon">🔢</span>Agregar a cola</div>
+  <div class="ctx-item danger" onclick="ctxRemoveSong()"><span class="ctx-icon">🗑</span>Eliminar de la lista</div>
+</div>
+
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+// PANTALLA CANCIONES — lógica de vista, filtros, reproductor, menú ctx
+// ════════════════════════════════════════════════════════════════════════
+let songsView = 'list'; // 'list' | 'grid'
+let sourceFilter = 'all';
+let ctxSong = null;
+let favorites = JSON.parse(localStorage.getItem('sonatta_favs') || '[]');
+let allDriveSongs = [];
+
+// ── Cambiar vista lista/grid ─────────────────────────────────────────
+function setSongsView(v) {
+  songsView = v;
+  document.getElementById('btnList').classList.toggle('active', v === 'list');
+  document.getElementById('btnGrid').classList.toggle('active', v === 'grid');
+  renderSongsScreen();
+}
+
+// ── Filtrar por fuente ───────────────────────────────────────────────
+function filterSource(src, el) {
+  sourceFilter = src;
+  document.querySelectorAll('.source-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderSongsScreen();
+}
+
+// ── Obtener canciones según filtro ───────────────────────────────────
+function getFilteredSongs() {
+  const local = (window.SonattaApp && window.SonattaApp.songs || []).filter(s => s.source !== 'gdrive');
+  const drive = allDriveSongs;
+  if (sourceFilter === 'local') return local;
+  if (sourceFilter === 'gdrive') return drive;
+  return [...local, ...drive];
+}
+
+// ── Renderizar pantalla canciones ────────────────────────────────────
+function renderSongsScreen() {
+  const songs = getFilteredSongs();
+  const container = document.getElementById('songsListInner');
+  if (!songs.length) {
+    container.className = '';
+    container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:3rem">🎵</div><div style="margin-top:12px">Sin canciones</div><div style="font-size:0.8rem;margin-top:6px">Conecta una nube o agrega música local</div></div>';
+    return;
+  }
+  if (songsView === 'grid') {
+    container.className = 'songs-grid-view';
+    container.innerHTML = songs.map((s, i) => {
+      const cover = s.coverUrl ? `<img src="${s.coverUrl}" alt="">` : '🎵';
+      const src = s.source === 'gdrive' ? '🔵' : '📱';
+      return `<div class="song-grid-card ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
+        <div class="song-grid-cover">${cover}<div class="play-overlay">▶</div></div>
+        <div class="song-grid-info">
+          <div class="song-grid-title">${escHtml(s.title||s.name||'Sin título')}</div>
+          <div class="song-grid-meta">${src} ${escHtml(s.artist||'')}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    container.className = 'songs-list-view';
+    container.innerHTML = songs.map((s, i) => {
+      const cover = s.coverUrl ? `<img src="${s.coverUrl}" alt="">` : '🎵';
+      const src = s.source === 'gdrive' ? '🔵 Drive' : '📱 Local';
+      const isFav = favorites.includes(s.id);
+      return `<div class="song-row ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
+        <div class="song-row-cover">${cover}</div>
+        <div class="song-row-info">
+          <div class="song-row-title">${escHtml(s.title||s.name||'Sin título')}</div>
+          <div class="song-row-meta">${escHtml(s.artist||'')} · ${src}${isFav?' · ♥':''}</div>
+        </div>
+        <button class="song-row-menu" onclick="openSongMenu(event,${i})">⋮</button></div>`;
+    }).join('');
+  }
+}
+
+// ── Reproducir desde lista ───────────────────────────────────────────
+async function playSongFromList(index) {
+  const songs = getFilteredSongs();
+  const song = songs[index];
+  if (!song) return;
+
+  const app = window.SonattaApp;
+  if (!app) return;
+
+  // Si es de Drive, necesita token
+  if (song.source === 'gdrive') {
+    if (!gdriveToken) { showToast('Reconecta Google Drive', 'error'); return; }
+    showToast('Cargando: ' + (song.title||song.name) + '...');
+    try {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${song.driveId}?alt=media`, {
+        headers: { Authorization: 'Bearer ' + gdriveToken }
+      });
+      if (!res.ok) throw new Error('Sin acceso');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      app.audio.src = url;
+    } catch(e) { showToast('Error: ' + e.message, 'error'); return; }
+  } else {
+    app.audio.src = song.url || song.streamUrl || '';
+  }
+
+  app.currentSong = song;
+  app.currentIndex = index;
+  app.audio.play().then(() => {
+    app.isPlaying = true;
+    updatePlayerUI(song);
+    updatePlayButtons(true);
+    updateSongsPlayer(song);
+    renderSongsScreen();
+    document.getElementById('songsPlayer').style.display = 'block';
+    const mp = document.getElementById('miniPlayer');
+    if (mp) mp.classList.add('visible');
+  }).catch(e => showToast('Error al reproducir', 'error'));
+}
+
+// ── Actualizar reproductor en pantalla canciones ─────────────────────
+function updateSongsPlayer(song) {
+  if (!song) return;
+  const titleEl = document.getElementById('spTitle');
+  const artistEl = document.getElementById('spArtist');
+  const coverEl = document.getElementById('spCover');
+  if (titleEl) titleEl.textContent = song.title || song.name || 'Sin título';
+  if (artistEl) artistEl.textContent = song.artist || (song.source === 'gdrive' ? 'Google Drive' : 'Local');
+  if (coverEl) {
+    if (song.coverUrl) {
+      coverEl.innerHTML = `<img src="${song.coverUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`;
+    } else {
+      coverEl.innerHTML = '🎵';
+    }
+  }
+  document.getElementById('songsPlayer').style.display = 'block';
+}
+
+// ── Progress bar del songs player ────────────────────────────────────
+function seekSP(e) {
+  const app = window.SonattaApp;
+  if (!app || !app.audio.duration) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  app.audio.currentTime = pct * app.audio.duration;
+}
+
+// Actualizar progress bar songs player
+document.addEventListener('firebaseReady', () => {
+  const app = window.SonattaApp;
+  if (!app) return;
+  app.audio.addEventListener('timeupdate', () => {
+    if (!app.audio.duration) return;
+    const pct = (app.audio.currentTime / app.audio.duration) * 100;
+    const fill = document.getElementById('spBarFill');
+    if (fill) fill.style.width = pct.toFixed(1) + '%';
+    const cur = document.getElementById('spCurrentTime');
+    if (cur) cur.textContent = formatTime(app.audio.currentTime);
+    const dur = document.getElementById('spDuration');
+    if (dur) dur.textContent = formatTime(app.audio.duration);
+    const spBtn = document.getElementById('spPlayBtn');
+    if (spBtn) spBtn.textContent = app.isPlaying ? '⏸' : '▶';
+  });
+});
+
+// ══ MENÚ CONTEXTUAL ════════════════════════════════════════════════
+function openSongMenu(e, index) {
+  e.stopPropagation();
+  const songs = getFilteredSongs();
+  ctxSong = { ...songs[index], _index: index };
+  const menu = document.getElementById('songContextMenu');
+  const isFav = favorites.includes(ctxSong.id);
+  document.getElementById('ctxFavIcon').textContent = isFav ? '♥' : '♡';
+  document.getElementById('ctxFavText').textContent = isFav ? 'Quitar de favoritos' : 'Agregar a favoritos';
+
+  // Posicionar menú
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 220) + 'px';
+  menu.classList.add('visible');
+}
+
+document.addEventListener('click', () => {
+  document.getElementById('songContextMenu').classList.remove('visible');
+});
+
+function ctxToggleFavorite() {
+  if (!ctxSong) return;
+  const idx = favorites.indexOf(ctxSong.id);
+  if (idx === -1) { favorites.push(ctxSong.id); showToast('♥ Agregado a favoritos'); }
+  else { favorites.splice(idx, 1); showToast('Quitado de favoritos'); }
+  localStorage.setItem('sonatta_favs', JSON.stringify(favorites));
+  renderSongsScreen();
+}
+
+function ctxPlayNext() {
+  if (!ctxSong || !window.SonattaApp) return;
+  window.SonattaApp.queue.unshift(ctxSong);
+  showToast('Se reproducirá después ⏭');
+}
+
+function ctxAddToQueue() {
+  if (!ctxSong || !window.SonattaApp) return;
+  window.SonattaApp.queue.push(ctxSong);
+  showToast('Agregado a la cola 🔢');
+}
+
+function ctxAddToPlaylist() {
+  showToast('Playlists — próximamente 🎶');
+}
+
+function ctxRemoveSong() {
+  if (!ctxSong) return;
+  allDriveSongs = allDriveSongs.filter(s => s.id !== ctxSong.id);
+  if (window.SonattaApp) window.SonattaApp.songs = window.SonattaApp.songs.filter(s => s.id !== ctxSong.id);
+  renderSongsScreen();
+  showToast('Canción eliminada de la lista');
+}
+
+// ══ NUBES — actualizar card de Drive ═══════════════════════════════
+function updateGdriveCard(connected, email, songCount) {
+  const pill = document.getElementById('gdrive-pill');
+  const emailEl = document.getElementById('gdrive-email');
+  const stats = document.getElementById('gdrive-stats');
+  const btn = document.getElementById('gdrive-btn');
+  const countEl = document.getElementById('gdrive-song-count');
+
+  if (pill) { pill.textContent = connected ? 'Conectado' : 'Desconectado'; pill.className = 'cloud-status-pill ' + (connected ? 'on' : 'off'); }
+  if (emailEl) emailEl.textContent = email || '—';
+  if (stats) stats.style.display = connected ? 'flex' : 'none';
+  if (btn) { btn.textContent = connected ? 'Desconectar' : 'Conectar Google Drive'; btn.className = 'cloud-connect-btn' + (connected ? ' connected' : ''); }
+  if (countEl) countEl.textContent = songCount || 0;
+
+  // Álbumes únicos (estimado)
+  const albums = document.getElementById('gdrive-album-count');
+  if (albums) albums.textContent = Math.floor((songCount||0) / 10) || '—';
+}
+</script>
+
+
+<!-- GLOBAL NAV -->
+<nav class="bottom-nav" id="globalNav">
+  <button class="nav-item" id="gnav-home" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
+  <button class="nav-item" id="gnav-clouds" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
+  <button class="nav-item" id="gnav-songs" onclick="switchView('songs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Canciones</span></button>
+  <button class="nav-item" id="gnav-playlists" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="nav-label">Playlists</span></button>
+  <button class="nav-item" id="gnav-settings" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
+</nav>
 </body>
 </html>
