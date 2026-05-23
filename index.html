@@ -2372,14 +2372,36 @@ async function loadGoogleDriveFiles() {
   showToast('Buscando música en Drive...');
 
   try {
-    // Buscar archivos de audio en Google Drive
+    // Buscar TODOS los archivos de audio con paginación
     const query = MUSIC_EXTENSIONS.map(ext => `name contains '${ext}'`).join(' or ');
-    const url = `https://www.googleapis.com/drive/v3/files?q=(${query}) and trashed=false&fields=files(id,name,mimeType,size,thumbnailLink,parents)&pageSize=200`;
+    let allFiles = [];
+    let pageToken = null;
+    let page = 1;
 
-    const res = await fetch(url, {
-      headers: { Authorization: 'Bearer ' + gdriveToken }
-    });
-    const data = await res.json();
+    do {
+      const params = new URLSearchParams({
+        q: `(${query}) and trashed=false`,
+        fields: 'nextPageToken,files(id,name,mimeType,thumbnailLink)',
+        pageSize: '1000',
+        ...(pageToken ? { pageToken } : {})
+      });
+
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
+        headers: { Authorization: 'Bearer ' + gdriveToken }
+      });
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error.message);
+      if (data.files) allFiles = allFiles.concat(data.files);
+      pageToken = data.nextPageToken || null;
+      page++;
+
+      // Actualizar contador en tiempo real
+      if (countEl) countEl.textContent = allFiles.length + (pageToken ? '+' : '');
+
+    } while (pageToken && page <= 10); // máx 10,000 canciones
+
+    const data = { files: allFiles };
 
     if (!data.files || data.files.length === 0) {
       if (countEl) countEl.textContent = '0';
