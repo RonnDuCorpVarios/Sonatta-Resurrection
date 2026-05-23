@@ -73,9 +73,17 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const screen = document.getElementById(id);
     if (screen) screen.classList.add('active');
-    // Ocultar nav en pantalla de bienvenida
+    // Solo mostrar nav en pantallas principales (no en auth)
+    const authScreens = ['welcomeScreen', 'loginScreen', 'registerScreen'];
     const nav = document.getElementById('globalNav');
-    if (nav) nav.style.display = (id === 'welcomeScreen') ? 'none' : 'flex';
+    if (nav) nav.style.display = authScreens.includes(id) ? 'none' : 'flex';
+    // Actualizar nav activo si aplica
+    const navMap = { homeScreen:'home', cloudsScreen:'clouds', songsScreen:'songs', playlistsScreen:'playlists', settingsScreen:'settings' };
+    if (navMap[id]) {
+      document.querySelectorAll('#globalNav .nav-item').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('gnav-' + navMap[id]);
+      if (activeBtn) activeBtn.classList.add('active');
+    }
   };
 
   onAuthStateChanged(auth, (user) => {
