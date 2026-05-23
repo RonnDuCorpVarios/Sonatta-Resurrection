@@ -1739,9 +1739,10 @@ async function checkAndRestoreDrive(uid) {
     if (!data.gdrive_connected || !data.gdrive_refresh_token) return;
 
     // Mostrar estado "reconectando" en la card
-    updateGdriveCard(false, data.gdrive_email || 'Google Drive', 0);
     const pill = document.getElementById('gdrive-pill');
     const btn  = document.getElementById('gdrive-btn');
+    const emailEl = document.getElementById('gdrive-email');
+    if (emailEl) emailEl.textContent = data.gdrive_email || 'Google Drive';
     if (pill) { pill.textContent = 'Reconectando...'; pill.className = 'cloud-status-pill off'; }
     if (btn)  { btn.textContent = 'Reconectando...'; btn.disabled = true; }
 
@@ -2365,12 +2366,10 @@ async function disconnectGoogleDrive() {
 
 // ── Cargar archivos de música desde Drive ────────────────────────────────────
 async function loadGoogleDriveFiles() {
-  const listEl = document.getElementById('gdrive-songs-list');
-  const filesEl = document.getElementById('gdrive-files');
-  const countEl = document.getElementById('gdrive-count');
-
-  filesEl.style.display = 'block';
-  listEl.innerHTML = '<div class="cloud-loading"><div class="cloud-loading-spinner"></div>Buscando música en Drive...</div>';
+  // Actualizar UI de la card
+  const countEl = document.getElementById('gdrive-song-count');
+  if (countEl) countEl.textContent = '...';
+  showToast('Buscando música en Drive...');
 
   try {
     // Buscar archivos de audio en Google Drive
@@ -2383,12 +2382,15 @@ async function loadGoogleDriveFiles() {
     const data = await res.json();
 
     if (!data.files || data.files.length === 0) {
-      listEl.innerHTML = '<div class="cloud-loading">No se encontraron archivos de música en tu Drive 🎵</div>';
-      countEl.textContent = '0 canciones encontradas';
+      if (countEl) countEl.textContent = '0';
+      updateGdriveCard(true, gdriveUserEmail, 0);
+      showToast('No se encontraron archivos de música en Drive 🎵');
+      allDriveSongs = [];
+      renderSongsScreen();
       return;
     }
 
-    countEl.textContent = `${data.files.length} canción(es) encontrada(s)`;
+    if (countEl) countEl.textContent = data.files.length;
     // Solo archivos de tu propio Drive (no compartidos) — trashed=false ya lo filtra
     // Poblar allDriveSongs para la pantalla Canciones
     allDriveSongs = data.files.map(f => ({
@@ -2402,7 +2404,7 @@ async function loadGoogleDriveFiles() {
       source: 'gdrive'
     }));
     updateGdriveCard(true, gdriveUserEmail || 'Google Drive', data.files.length);
-    renderDriveSongs(data.files);
+    // canciones en allDriveSongs, se muestran en pantalla Canciones
     // Actualizar pantalla canciones si está visible
     if (document.getElementById('songsScreen').classList.contains('active')) renderSongsScreen();
 
@@ -2726,21 +2728,22 @@ function ctxRemoveSong() {
 
 // ══ NUBES — actualizar card de Drive ═══════════════════════════════
 function updateGdriveCard(connected, email, songCount) {
-  const pill = document.getElementById('gdrive-pill');
+  const pill    = document.getElementById('gdrive-pill');
   const emailEl = document.getElementById('gdrive-email');
-  const stats = document.getElementById('gdrive-stats');
-  const btn = document.getElementById('gdrive-btn');
+  const stats   = document.getElementById('gdrive-stats');
+  const btn     = document.getElementById('gdrive-btn');
   const countEl = document.getElementById('gdrive-song-count');
+  const albums  = document.getElementById('gdrive-album-count');
 
-  if (pill) { pill.textContent = connected ? 'Conectado' : 'Desconectado'; pill.className = 'cloud-status-pill ' + (connected ? 'on' : 'off'); }
+  if (pill)    { pill.textContent = connected ? 'Conectado' : 'Desconectado'; pill.className = 'cloud-status-pill ' + (connected ? 'on' : 'off'); }
   if (emailEl) emailEl.textContent = email || '—';
-  if (stats) stats.style.display = connected ? 'flex' : 'none';
-  if (btn) { btn.textContent = connected ? 'Desconectar' : 'Conectar Google Drive'; btn.className = 'cloud-connect-btn' + (connected ? ' connected' : ''); }
+  if (stats)   stats.style.display = connected ? 'flex' : 'none';
+  if (btn)     { btn.textContent = connected ? 'Desconectar' : 'Conectar Google Drive'; btn.className = 'cloud-connect-btn' + (connected ? ' connected' : ''); }
   if (countEl) countEl.textContent = songCount || 0;
+  if (albums)  albums.textContent = songCount ? Math.max(1, Math.floor(songCount / 10)) : '—';
 
-  // Álbumes únicos (estimado)
-  const albums = document.getElementById('gdrive-album-count');
-  if (albums) albums.textContent = Math.floor((songCount||0) / 10) || '—';
+  const songsScreen = document.getElementById('songsScreen');
+  if (songsScreen && songsScreen.classList.contains('active')) renderSongsScreen();
 }
 </script>
 
