@@ -78,7 +78,7 @@
     const nav = document.getElementById('globalNav');
     if (nav) nav.style.display = authScreens.includes(id) ? 'none' : 'flex';
     // Actualizar nav activo si aplica
-    const navMap = { homeScreen:'home', cloudsScreen:'clouds', songsScreen:'songs', playlistsScreen:'playlists', settingsScreen:'settings' };
+    const navMap = { homeScreen:'home', cloudsScreen:'clouds', songsScreen:'songs', foldersScreen:'folders', playlistsScreen:'playlists', settingsScreen:'settings' };
     if (navMap[id]) {
       document.querySelectorAll('#globalNav .nav-item').forEach(b => b.classList.remove('active'));
       const activeBtn = document.getElementById('gnav-' + navMap[id]);
@@ -1178,6 +1178,41 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 .cloud-status-pill.on { background: rgba(52,211,153,0.15); color: var(--green); }
 .cloud-status-pill.off { background: var(--bg3); color: var(--text3); }
 
+
+/* ── EXPLORADOR DE CARPETAS ─────────────────── */
+.breadcrumb-item {
+  color: var(--accent2); cursor: pointer; font-size: 0.82rem;
+  font-weight: 600; white-space: nowrap; transition: opacity 0.2s;
+}
+.breadcrumb-item:hover { opacity: 0.7; }
+.breadcrumb-sep { color: var(--text3); font-size: 0.75rem; flex-shrink: 0; }
+.folder-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; cursor: pointer;
+  border-bottom: 1px solid var(--border); transition: background 0.15s;
+}
+.folder-item:hover { background: var(--bg3); }
+.folder-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: rgba(124,92,252,0.1); display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+  font-size: 1.3rem;
+}
+.folder-icon.song { background: rgba(52,211,153,0.1); }
+.folder-info { flex: 1; min-width: 0; }
+.folder-name { font-size: 0.9rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.folder-meta { font-size: 0.75rem; color: var(--text3); margin-top: 2px; }
+.folder-chevron { color: var(--text3); font-size: 1rem; flex-shrink: 0; }
+.folder-loading {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 40px; color: var(--text2); font-size: 0.9rem;
+}
+.folder-loading-spinner {
+  width: 20px; height: 20px; border: 2px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 </style>
 </head>
 <body>
@@ -1707,8 +1742,9 @@ document.addEventListener('firebaseReady', () => {
 // VISTA SWITCHER (navegación entre secciones)
 // ═══════════════════════════════════════════
 function switchView(view) {
-  const screens = { home:'homeScreen', clouds:'cloudsScreen', songs:'songsScreen', playlists:'playlistsScreen', settings:'settingsScreen' };
+  const screens = { home:'homeScreen', clouds:'cloudsScreen', songs:'songsScreen', folders:'foldersScreen', playlists:'playlistsScreen', settings:'settingsScreen' };
   showScreen(screens[view] || 'homeScreen');
+  if (view === 'folders') onFoldersScreenEnter();
   // Mover mini player y full player al screen activo si es homeScreen
   const mp = document.getElementById('miniPlayer');
   const fp = document.getElementById('fullPlayer');
@@ -2822,6 +2858,7 @@ function updateGdriveCard(connected, email, songCount) { updateDriveCard(0, conn
   <button class="nav-item" id="gnav-home" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
   <button class="nav-item" id="gnav-clouds" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
   <button class="nav-item" id="gnav-songs" onclick="switchView('songs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Canciones</span></button>
+  <button class="nav-item" id="gnav-folders" onclick="switchView('folders')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg><span class="nav-label">Carpetas</span></button>
   <button class="nav-item" id="gnav-playlists" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="nav-label">Playlists</span></button>
   <button class="nav-item" id="gnav-settings" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
 </nav>
@@ -2932,5 +2969,260 @@ const _origRenderSongs = window.renderSongsScreen;
 // Se llama desde renderSongsScreen al final
 </script>
 
+
+<div id="foldersScreen" class="screen">
+  <!-- Selector de nube -->
+  <div id="folderCloudSelector" style="padding:16px;border-bottom:1px solid var(--border);background:var(--bg2)">
+    <div style="font-size:0.75rem;color:var(--text3);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Seleccionar nube</div>
+    <div style="display:flex;gap:8px" id="folderCloudBtns">
+      <button class="source-chip active" id="fcloud-0" onclick="selectFolderCloud(0)">
+        <svg viewBox="0 0 87.3 78" width="14" height="14" style="vertical-align:middle;margin-right:4px"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.4c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 52.9H27.5L13.75 76.7c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.45l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 27.9h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
+        Drive #1
+      </button>
+      <button class="source-chip" id="fcloud-1" onclick="selectFolderCloud(1)" style="opacity:0.4;pointer-events:none">
+        <svg viewBox="0 0 87.3 78" width="14" height="14" style="vertical-align:middle;margin-right:4px"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.4c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.2z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 52.9H27.5L13.75 76.7c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.45l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 27.9h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
+        Drive #2
+      </button>
+    </div>
+  </div>
+
+  <!-- Breadcrumb de navegación -->
+  <div id="folderBreadcrumb" style="padding:10px 16px;display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0">
+    <span class="breadcrumb-item" onclick="navigateToFolder('root','Mi Drive')" style="color:var(--accent2);cursor:pointer;font-size:0.82rem;font-weight:600;white-space:nowrap">Mi Drive</span>
+  </div>
+
+  <!-- Contenido de la carpeta -->
+  <div id="folderContent" style="flex:1;overflow-y:auto;padding-bottom:8px">
+    <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+      <div style="font-size:3rem">☁️</div>
+      <div style="margin-top:12px;font-weight:600">Conecta una nube</div>
+      <div style="font-size:0.8rem;margin-top:6px">Ve a Nubes y conecta tu Google Drive</div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// EXPLORADOR DE CARPETAS — Google Drive
+// ═══════════════════════════════════════════════════════════════
+
+let folderCurrentSlot = 0;
+let folderStack = []; // historial de navegación: [{id, name}]
+let folderCache = {}; // cache: folderId -> {folders[], songs[]}
+
+// ── Seleccionar nube ──────────────────────────────────────────
+function selectFolderCloud(slot) {
+  if (!driveAccounts[slot] || !driveAccounts[slot].connected) {
+    showToast('Esta cuenta no está conectada', 'error'); return;
+  }
+  folderCurrentSlot = slot;
+  folderStack = [];
+  folderCache = {};
+
+  // Actualizar chips
+  document.querySelectorAll('#folderCloudBtns .source-chip').forEach((c, i) => {
+    c.classList.toggle('active', i === slot);
+  });
+
+  navigateToFolder('root', 'Mi Drive');
+}
+
+// ── Navegar a una carpeta ─────────────────────────────────────
+async function navigateToFolder(folderId, folderName) {
+  // Actualizar stack
+  const existingIdx = folderStack.findIndex(f => f.id === folderId);
+  if (existingIdx !== -1) {
+    folderStack = folderStack.slice(0, existingIdx + 1);
+  } else {
+    folderStack.push({ id: folderId, name: folderName });
+  }
+
+  updateBreadcrumb();
+  await loadFolderContent(folderId);
+}
+
+// ── Actualizar breadcrumb ─────────────────────────────────────
+function updateBreadcrumb() {
+  const bc = document.getElementById('folderBreadcrumb');
+  if (!bc) return;
+  bc.innerHTML = folderStack.map((f, i) => {
+    const isLast = i === folderStack.length - 1;
+    const sep = i > 0 ? '<span class="breadcrumb-sep"> / </span>' : '';
+    if (isLast) {
+      return `${sep}<span style="color:var(--text);font-size:0.82rem;font-weight:600;white-space:nowrap">${escHtml(f.name)}</span>`;
+    }
+    return `${sep}<span class="breadcrumb-item" onclick="navigateToFolder('${f.id}','${escHtml(f.name)}')">${escHtml(f.name)}</span>`;
+  }).join('');
+  // Scroll al final del breadcrumb
+  bc.scrollLeft = bc.scrollWidth;
+}
+
+// ── Cargar contenido de carpeta ───────────────────────────────
+async function loadFolderContent(folderId) {
+  const content = document.getElementById('folderContent');
+  if (!content) return;
+
+  const acc = driveAccounts[folderCurrentSlot];
+  if (!acc || !acc.token) {
+    content.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:3rem">☁️</div><div style="margin-top:12px">Conecta tu Google Drive primero</div></div>';
+    return;
+  }
+
+  // Mostrar spinner
+  content.innerHTML = '<div class="folder-loading"><div class="folder-loading-spinner"></div>Cargando...</div>';
+
+  // Usar cache si existe
+  if (folderCache[folderId]) {
+    renderFolderContent(folderCache[folderId]);
+    return;
+  }
+
+  try {
+    const token = acc.token;
+    const parentQ = folderId === 'root' ? "'root' in parents" : `'${folderId}' in parents`;
+    const MUSIC_EXT = ['.mp3','.flac','.wav','.ogg','.m4a','.aac','.wma','.opus'];
+
+    // Traer carpetas y archivos de música en paralelo
+    const [foldersRes, songsRes] = await Promise.all([
+      fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(parentQ + " and mimeType='application/vnd.google-apps.folder' and trashed=false")}&fields=files(id,name,mimeType)&orderBy=name&pageSize=200`, {
+        headers: { Authorization: 'Bearer ' + token }
+      }),
+      fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(parentQ + " and (" + MUSIC_EXT.map(e => `name contains '${e}'`).join(' or ') + ") and trashed=false")}&fields=files(id,name,mimeType,thumbnailLink)&orderBy=name&pageSize=500`, {
+        headers: { Authorization: 'Bearer ' + token }
+      })
+    ]);
+
+    const [foldersData, songsData] = await Promise.all([foldersRes.json(), songsRes.json()]);
+    if (foldersData.error) throw new Error(foldersData.error.message);
+
+    const result = {
+      folders: foldersData.files || [],
+      songs: songsData.files || []
+    };
+
+    folderCache[folderId] = result;
+    renderFolderContent(result);
+
+  } catch(e) {
+    content.innerHTML = `<div style="text-align:center;padding:40px;color:var(--red)">Error: ${escHtml(e.message)}</div>`;
+  }
+}
+
+// ── Renderizar contenido ──────────────────────────────────────
+function renderFolderContent({ folders, songs }) {
+  const content = document.getElementById('folderContent');
+  if (!content) return;
+
+  if (!folders.length && !songs.length) {
+    content.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:3rem">📂</div><div style="margin-top:12px">Carpeta vacía</div></div>';
+    return;
+  }
+
+  const foldersHtml = folders.map(f => `
+    <div class="folder-item" onclick="navigateToFolder('${f.id}','${escHtml(f.name)}')">
+      <div class="folder-icon">📁</div>
+      <div class="folder-info">
+        <div class="folder-name">${escHtml(f.name)}</div>
+        <div class="folder-meta">Carpeta</div>
+      </div>
+      <span class="folder-chevron">›</span>
+    </div>`).join('');
+
+  const songsHtml = songs.map((f, i) => {
+    const title = f.name.replace(/\.[^.]+$/, '');
+    const ext = f.name.split('.').pop().toUpperCase();
+    return `
+    <div class="folder-item" onclick="playFolderSong('${f.id}','${escHtml(f.name)}',${folderCurrentSlot},${i})">
+      <div class="folder-icon song">
+        <img data-src="lazy" data-drive-id="${f.id}" data-slot="${folderCurrentSlot}"
+          class="lazy-cover" alt=""
+          style="width:42px;height:42px;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">
+      </div>
+      <div class="folder-info">
+        <div class="folder-name">${escHtml(title)}</div>
+        <div class="folder-meta">${ext} · Google Drive #${folderCurrentSlot+1}</div>
+      </div>
+      <span class="folder-chevron" style="font-size:0.85rem">▶</span>
+    </div>`;
+  }).join('');
+
+  content.innerHTML = foldersHtml + songsHtml;
+
+  // Lazy loading de carátulas
+  setTimeout(initLazyCovers, 50);
+}
+
+// ── Reproducir canción desde el explorador ────────────────────
+async function playFolderSong(fileId, fileName, slot, index) {
+  const acc = driveAccounts[slot];
+  if (!acc || !acc.token) { showToast('Nube no conectada', 'error'); return; }
+
+  const title = fileName.replace(/\.[^.]+$/, '');
+  showToast('Cargando: ' + title + '...');
+
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: 'Bearer ' + acc.token } }
+    );
+    if (!res.ok) throw new Error('Sin acceso al archivo');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    const song = {
+      id: `gdrive_${slot}_${fileId}`,
+      driveId: fileId, driveSlot: slot,
+      title, name: fileName, artist: '', source: 'gdrive', coverUrl: null
+    };
+
+    const app = window.SonattaApp;
+    if (!app) return;
+    app.audio.src = url;
+    app.currentSong = song;
+    app.audio.play().then(() => {
+      app.isPlaying = true;
+      updatePlayerUI(song);
+      updatePlayButtons(true);
+      updateSongsPlayer(song);
+      const mp = document.getElementById('miniPlayer');
+      if (mp) mp.classList.add('visible');
+      showToast('▶ ' + title, 'success');
+      // Marcar como playing
+      document.querySelectorAll('#folderContent .folder-item').forEach((el, i) => {
+        el.classList.toggle('playing', i === index + document.querySelectorAll('#folderContent .folder-item.folder-dir').length);
+      });
+    }).catch(e => showToast('Error: ' + e.message, 'error'));
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Al entrar a la pantalla Carpetas ─────────────────────────
+function onFoldersScreenEnter() {
+  // Habilitar/deshabilitar chips según cuentas conectadas
+  for (let s = 0; s < 2; s++) {
+    const btn = document.getElementById(`fcloud-${s}`);
+    if (!btn) continue;
+    const connected = driveAccounts[s] && driveAccounts[s].connected;
+    btn.style.opacity = connected ? '1' : '0.4';
+    btn.style.pointerEvents = connected ? 'auto' : 'none';
+    if (s === 0) {
+      const emailEl = driveAccounts[s] ? driveAccounts[s].email : '';
+      btn.title = emailEl;
+    }
+  }
+
+  // Si hay cuenta conectada y no se ha navegado, cargar raíz
+  const acc = driveAccounts[folderCurrentSlot];
+  if (acc && acc.connected && folderStack.length === 0) {
+    navigateToFolder('root', 'Mi Drive');
+  } else if (!acc || !acc.connected) {
+    const content = document.getElementById('folderContent');
+    if (content) content.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:3rem">☁️</div><div style="margin-top:12px;font-weight:600">Conecta una nube primero</div><div style="font-size:0.8rem;margin-top:6px">Ve a la pestaña Nubes</div></div>';
+  }
+}
+
+</script>
 </body>
 </html>
