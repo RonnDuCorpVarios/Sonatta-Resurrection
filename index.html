@@ -2620,7 +2620,9 @@ function renderSongsScreen() {
   if (songsView === 'grid') {
     container.className = 'songs-grid-view';
     container.innerHTML = songs.map((s, i) => {
-      const cover = s.coverUrl ? `<img src="${s.coverUrl}" alt="" onerror="loadAuthCover(this,'${s.driveId}',${s.driveSlot||0})" crossorigin="anonymous">` : '<span style="font-size:1.4rem">🎵</span>';
+      const cover = s.source === 'gdrive'
+      ? `<img data-src="lazy" data-drive-id="${s.driveId}" data-slot="${s.driveSlot||0}" alt="" class="lazy-cover" style="width:100%;height:100%;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">`
+      : s.coverUrl ? `<img src="${s.coverUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:10px">` : '<span style="font-size:1.4rem">🎵</span>';
       const src = s.source === 'gdrive' ? '🔵' : '📱';
       return `<div class="song-grid-card ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
         <div class="song-grid-cover">${cover}<div class="play-overlay">▶</div></div>
@@ -2633,7 +2635,9 @@ function renderSongsScreen() {
   } else {
     container.className = 'songs-list-view';
     container.innerHTML = songs.map((s, i) => {
-      const cover = s.coverUrl ? `<img src="${s.coverUrl}" alt="" onerror="loadAuthCover(this,'${s.driveId}',${s.driveSlot||0})" crossorigin="anonymous">` : '<span style="font-size:1.4rem">🎵</span>';
+      const cover = s.source === 'gdrive'
+      ? `<img data-src="lazy" data-drive-id="${s.driveId}" data-slot="${s.driveSlot||0}" alt="" class="lazy-cover" style="width:100%;height:100%;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">`
+      : s.coverUrl ? `<img src="${s.coverUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:10px">` : '<span style="font-size:1.4rem">🎵</span>';
       const src = s.source === 'gdrive' ? '🔵 Drive' : '📱 Local';
       const isFav = favorites.includes(s.id);
       return `<div class="song-row ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
@@ -2645,6 +2649,8 @@ function renderSongsScreen() {
         <button class="song-row-menu" onclick="openSongMenu(event,${i})">⋮</button></div>`;
     }).join('');
   }
+  // Iniciar lazy loading de carátulas
+  setTimeout(initLazyCovers, 50);
 }
 
 // ── Reproducir desde lista ───────────────────────────────────────────
@@ -2847,5 +2853,84 @@ async function loadAuthCover(imgEl, driveId, slot) {
   } catch(e) { /* mantener ícono por defecto */ }
 }
 </script>
+
+<script>
+// ═══════════════════════════════════════════
+// LAZY LOADING DE CARÁTULAS
+// Solo carga imágenes cuando son visibles en pantalla
+// ═══════════════════════════════════════════
+
+let lazyObserver = null;
+
+function initLazyCovers() {
+  // Desconectar observer anterior si existe
+  if (lazyObserver) lazyObserver.disconnect();
+
+  lazyObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const img = entry.target;
+      lazyObserver.unobserve(img); // cargar solo una vez
+      loadCoverForImg(img);
+    });
+  }, {
+    rootMargin: '100px', // empezar a cargar 100px antes de ser visible
+    threshold: 0
+  });
+
+  // Observar todas las imágenes lazy del DOM
+  document.querySelectorAll('img.lazy-cover').forEach(img => {
+    lazyObserver.observe(img);
+  });
+}
+
+async function loadCoverForImg(img) {
+  const driveId = img.dataset.driveId;
+  const slot    = parseInt(img.dataset.slot || '0');
+  if (!driveId) return;
+
+  const acc = driveAccounts[slot];
+  if (!acc || !acc.token) return;
+
+  try {
+    // Pedir el thumbnailLink autenticado
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${driveId}?fields=thumbnailLink`,
+      { headers: { Authorization: 'Bearer ' + acc.token } }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.thumbnailLink) return;
+
+    // Descargar la imagen como blob (evita problemas de CORS y autenticación)
+    const imgUrl = data.thumbnailLink.replace('=s220', '=s400');
+    const imgRes = await fetch(imgUrl, {
+      headers: { Authorization: 'Bearer ' + acc.token }
+    });
+    if (!imgRes.ok) return;
+
+    const blob = await imgRes.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    // Solo aplicar si el img sigue en el DOM
+    if (img.isConnected) {
+      img.src = objectUrl;
+      img.style.opacity = '1';
+      img.dataset.loaded = 'true';
+    } else {
+      URL.revokeObjectURL(objectUrl); // liberar memoria si ya no está visible
+    }
+
+  } catch(e) {
+    // Silencioso — mostrar placeholder
+  }
+}
+
+// Re-inicializar lazy observer cada vez que se renderiza la lista de canciones
+const _origRenderSongs = window.renderSongsScreen;
+// Hook: después de renderSongsScreen, inicializar lazy loading
+// Se llama desde renderSongsScreen al final
+</script>
+
 </body>
 </html>
