@@ -2900,23 +2900,20 @@ async function loadAuthCover(imgEl, driveId, slot) {
 let lazyObserver = null;
 
 function initLazyCovers() {
-  // Desconectar observer anterior si existe
   if (lazyObserver) lazyObserver.disconnect();
 
   lazyObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (!entry.isIntersecting) return;
       const img = entry.target;
-      lazyObserver.unobserve(img); // cargar solo una vez
+      if (img.dataset.loaded === 'true') { lazyObserver.unobserve(img); return; }
+      lazyObserver.unobserve(img);
       loadCoverForImg(img);
     });
-  }, {
-    rootMargin: '100px', // empezar a cargar 100px antes de ser visible
-    threshold: 0
-  });
+  }, { rootMargin: '150px', threshold: 0 });
 
-  // Observar todas las imágenes lazy del DOM
-  document.querySelectorAll('img.lazy-cover').forEach(img => {
+  // Observar todas las imágenes lazy no cargadas
+  document.querySelectorAll('img.lazy-cover:not([data-loaded="true"])').forEach(img => {
     lazyObserver.observe(img);
   });
 }
@@ -2924,42 +2921,44 @@ function initLazyCovers() {
 async function loadCoverForImg(img) {
   const driveId = img.dataset.driveId;
   const slot    = parseInt(img.dataset.slot || '0');
-  if (!driveId) return;
+  if (!driveId || img.dataset.loaded === 'true') return;
 
   const acc = driveAccounts[slot];
   if (!acc || !acc.token) return;
 
   try {
-    // Pedir el thumbnailLink autenticado
+    // Paso 1: obtener thumbnailLink del archivo
     const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${driveId}?fields=thumbnailLink`,
+      `https://www.googleapis.com/drive/v3/files/${driveId}?fields=thumbnailLink,hasThumbnail`,
       { headers: { Authorization: 'Bearer ' + acc.token } }
     );
     if (!res.ok) return;
     const data = await res.json();
-    if (!data.thumbnailLink) return;
+    if (!data.hasThumbnail || !data.thumbnailLink) return;
 
-    // Descargar la imagen como blob (evita problemas de CORS y autenticación)
+    // Paso 2: thumbnailLink ya incluye el token de Google en la URL
+    // No necesita header Authorization — es una URL firmada
     const imgUrl = data.thumbnailLink.replace('=s220', '=s400');
-    const imgRes = await fetch(imgUrl, {
-      headers: { Authorization: 'Bearer ' + acc.token }
-    });
+
+    // Intentar cargar directamente (la URL ya tiene auth embebida)
+    const imgRes = await fetch(imgUrl);
     if (!imgRes.ok) return;
 
     const blob = await imgRes.blob();
+    if (!blob.type.startsWith('image/')) return;
+
     const objectUrl = URL.createObjectURL(blob);
 
-    // Solo aplicar si el img sigue en el DOM
     if (img.isConnected) {
       img.src = objectUrl;
       img.style.opacity = '1';
       img.dataset.loaded = 'true';
     } else {
-      URL.revokeObjectURL(objectUrl); // liberar memoria si ya no está visible
+      URL.revokeObjectURL(objectUrl);
     }
 
   } catch(e) {
-    // Silencioso — mostrar placeholder
+    // silencioso
   }
 }
 
