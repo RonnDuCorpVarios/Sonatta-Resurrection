@@ -2153,6 +2153,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
       <div class="source-chip active" onclick="filterSource('all',this)">Todas</div>
       <div class="source-chip" onclick="filterSource('local',this)">📱 Local</div>
       <div class="source-chip" onclick="filterSource('gdrive',this)">🔵 Drive</div>
+      <div class="source-chip" onclick="filterSource('favs',this)">♥ Favoritos</div>
     </div>
     <button class="view-toggle-btn active" id="btnList" onclick="setSongsView('list')" title="Lista">☰</button>
     <button class="view-toggle-btn" id="btnGrid" onclick="setSongsView('grid')" title="Cuadrícula">⊞</button>
@@ -2491,6 +2492,13 @@ window.SonattaUI = {
 
     // Cargar canciones desde Firestore
     loadSongsFromFirestore(user.uid);
+    // Cargar favoritos desde Firestore
+    window.SonattaApp.getDoc('users', user.uid).then(snap => {
+      if (snap.exists() && snap.data().favorites) {
+        favorites = snap.data().favorites;
+        localStorage.setItem('sonatta_favs', JSON.stringify(favorites));
+      }
+    }).catch(() => {});
 
     // ── Reconexión automática de Drive ───────────────────────────────
     checkAndRestoreDrive(user.uid);
@@ -3325,9 +3333,11 @@ function filterSource(src, el) {
 function getFilteredSongs() {
   const local = (window.SonattaApp && window.SonattaApp.songs || []).filter(s => s.source !== 'gdrive');
   const drive = allDriveSongs;
+  const all = [...local, ...drive];
   if (sourceFilter === 'local') return local;
   if (sourceFilter === 'gdrive') return drive;
-  return [...local, ...drive];
+  if (sourceFilter === 'favs') return all.filter(s => favorites.includes(s.id));
+  return all;
 }
 
 // ── Renderizar pantalla canciones ────────────────────────────────────
@@ -4062,7 +4072,9 @@ async function loadPlaylists() {
   try {
     const snap = await window.SonattaApp.getDocs('playlists_' + user.uid);
     let playlists = [];
-    if (snap && !snap.empty) snap.forEach(d => playlists.push({ id: d.id, ...d.data() }));
+    if (snap && snap.docs && snap.docs.length > 0) {
+      snap.forEach(d => playlists.push({ id: d.id, ...d.data() }));
+    }
 
     if (!playlists.length) {
       container.innerHTML = `
