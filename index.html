@@ -2261,7 +2261,22 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   </nav></div>
 
 <div id="playlistsScreen" class="screen">
-  <div class="content-area"><div style="padding:52px 20px 16px;background:linear-gradient(180deg,var(--bg) 70%,transparent 100%);position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)"><h2 style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:-0.02em;color:var(--text)">Playlists 🎶</h2><p>Tus listas de reproducción</p></div><div class="empty-state"><div class="empty-icon">🎶</div><div class="empty-title">Próximamente</div><div class="empty-desc">Playlists y listas inteligentes — Parte 4</div></div></div>
+  <div style="padding:52px 20px 16px;background:linear-gradient(180deg,var(--bg) 70%,transparent 100%);position:sticky;top:0;z-index:10;backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div>
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:-0.02em;color:var(--text)">Playlists 🎶</h2>
+      <p style="font-size:0.78rem;color:var(--text3);margin-top:3px">Tus listas de reproducción</p>
+    </div>
+    <button onclick="showCreatePlaylistModal()" style="width:40px;height:40px;background:rgba(124,92,252,0.15);border:1px solid rgba(124,92,252,0.3);border-radius:12px;color:var(--accent2);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s" title="Nueva playlist">+</button>
+  </div>
+
+  <div class="content-area" id="playlistsContent" style="flex:1;overflow-y:auto;padding:8px 16px 16px">
+    <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+      <div style="width:72px;height:72px;border-radius:22px;background:rgba(124,92,252,0.1);border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px">🎶</div>
+      <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px">Sin playlists aún</div>
+      <div style="font-size:0.8rem;color:var(--text3);margin-bottom:20px">Crea tu primera lista de reproducción</div>
+      <button onclick="showCreatePlaylistModal()" style="padding:12px 24px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem">Crear playlist</button>
+    </div>
+  </div>
 </div>
 
 <div id="settingsScreen" class="screen">
@@ -2432,6 +2447,7 @@ function switchView(view) {
   const screens = { home:'homeScreen', clouds:'cloudsScreen', songs:'songsScreen', folders:'foldersScreen', playlists:'playlistsScreen', settings:'settingsScreen' };
   showScreen(screens[view] || 'homeScreen');
   if (view === 'folders') onFoldersScreenEnter();
+  if (view === 'playlists') loadPlaylists();
   // Mover mini player y full player al screen activo si es homeScreen
   const mp = document.getElementById('miniPlayer');
   const fp = document.getElementById('fullPlayer');
@@ -3466,37 +3482,175 @@ document.addEventListener('click', () => {
   document.getElementById('songContextMenu').classList.remove('visible');
 });
 
+// ── FAVORITOS ─────────────────────────────────────────────────────────────────
 function ctxToggleFavorite() {
   if (!ctxSong) return;
   const idx = favorites.indexOf(ctxSong.id);
-  if (idx === -1) { favorites.push(ctxSong.id); showToast('♥ Agregado a favoritos'); }
-  else { favorites.splice(idx, 1); showToast('Quitado de favoritos'); }
+  if (idx === -1) {
+    favorites.push(ctxSong.id);
+    showToast('♥ Agregado a favoritos', 'success');
+    document.getElementById('ctxFavIcon').textContent = '♥';
+    document.getElementById('ctxFavText').textContent = 'Quitar de favoritos';
+    // Guardar en Firestore
+    const user = window.SonattaApp?.currentUser;
+    if (user) window.SonattaApp.saveDoc('users', user.uid, { favorites });
+  } else {
+    favorites.splice(idx, 1);
+    showToast('Quitado de favoritos');
+    document.getElementById('ctxFavIcon').textContent = '♡';
+    document.getElementById('ctxFavText').textContent = 'Agregar a favoritos';
+    const user = window.SonattaApp?.currentUser;
+    if (user) window.SonattaApp.saveDoc('users', user.uid, { favorites });
+  }
   localStorage.setItem('sonatta_favs', JSON.stringify(favorites));
   renderSongsScreen();
 }
 
+// ── REPRODUCIR DESPUÉS ────────────────────────────────────────────────────────
 function ctxPlayNext() {
   if (!ctxSong || !window.SonattaApp) return;
   window.SonattaApp.queue.unshift(ctxSong);
-  showToast('Se reproducirá después ⏭');
+  showToast(`⏭ "${ctxSong.title || ctxSong.name}" se reproducirá después`, 'success');
 }
 
+// ── AGREGAR A COLA ────────────────────────────────────────────────────────────
 function ctxAddToQueue() {
   if (!ctxSong || !window.SonattaApp) return;
   window.SonattaApp.queue.push(ctxSong);
-  showToast('Agregado a la cola 🔢');
+  const qLen = window.SonattaApp.queue.length;
+  showToast(`🔢 En cola — posición #${qLen}`, 'success');
 }
 
-function ctxAddToPlaylist() {
-  showToast('Playlists — próximamente 🎶');
+// ── AGREGAR A PLAYLIST ────────────────────────────────────────────────────────
+async function ctxAddToPlaylist() {
+  if (!ctxSong) return;
+  const user = window.SonattaApp?.currentUser;
+  if (!user) { showToast('Inicia sesión para usar playlists', 'error'); return; }
+
+  // Cargar playlists del usuario
+  const snap = await window.SonattaApp.getDocs('playlists_' + user.uid).catch(() => null);
+  let playlists = [];
+  if (snap && !snap.empty) {
+    snap.forEach(d => playlists.push({ id: d.id, ...d.data() }));
+  }
+
+  // Mostrar modal de selección
+  showPlaylistPicker(playlists, ctxSong);
 }
 
+// ── ELIMINAR DE LA LISTA ──────────────────────────────────────────────────────
 function ctxRemoveSong() {
   if (!ctxSong) return;
+  const title = ctxSong.title || ctxSong.name || 'canción';
   allDriveSongs = allDriveSongs.filter(s => s.id !== ctxSong.id);
-  if (window.SonattaApp) window.SonattaApp.songs = window.SonattaApp.songs.filter(s => s.id !== ctxSong.id);
+  if (window.SonattaApp) {
+    window.SonattaApp.songs = window.SonattaApp.songs.filter(s => s.id !== ctxSong.id);
+  }
   renderSongsScreen();
-  showToast('Canción eliminada de la lista');
+  showToast(`🗑 "${title}" eliminada de la lista`);
+}
+
+// ── MODAL DE PLAYLISTS ────────────────────────────────────────────────────────
+function showPlaylistPicker(playlists, song) {
+  // Eliminar modal anterior si existe
+  const existing = document.getElementById('playlistPickerModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'playlistPickerModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;display:flex;align-items:flex-end;backdrop-filter:blur(4px)';
+
+  const content = document.createElement('div');
+  content.style.cssText = 'width:100%;background:var(--bg3);border-radius:24px 24px 0 0;padding:20px;max-height:70vh;overflow-y:auto;border-top:1px solid rgba(255,255,255,0.1)';
+
+  const listItems = playlists.map(pl => `
+    <div onclick="addSongToPlaylist('${pl.id}','${pl.name}')" style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:14px;cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+      <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🎶</div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;color:var(--text)">${escHtml(pl.name)}</div>
+        <div style="font-size:0.72rem;color:var(--text3);margin-top:2px">${(pl.songs||[]).length} canciones</div>
+      </div>
+    </div>`).join('');
+
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text)">Agregar a playlist</h3>
+      <button onclick="document.getElementById('playlistPickerModal').remove()" style="background:rgba(255,255,255,0.08);border:none;color:var(--text2);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem">✕</button>
+    </div>
+    ${playlists.length ? listItems : '<div style="text-align:center;padding:24px;color:var(--text3)">No tienes playlists aún</div>'}
+    <button onclick="showCreatePlaylistModal()" style="width:100%;margin-top:12px;padding:13px;background:rgba(124,92,252,0.15);border:1px solid rgba(124,92,252,0.3);border-radius:14px;color:var(--accent2);font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;font-size:0.88rem">
+      ➕ Nueva playlist
+    </button>
+  `;
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function addSongToPlaylist(playlistId, playlistName) {
+  if (!ctxSong) return;
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+
+  try {
+    const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+    const data = snap.exists() ? snap.data() : { name: playlistName, songs: [] };
+    const songs = data.songs || [];
+
+    if (songs.find(s => s.id === ctxSong.id)) {
+      showToast('Ya está en esta playlist');
+      document.getElementById('playlistPickerModal')?.remove();
+      return;
+    }
+    songs.push({ id: ctxSong.id, title: ctxSong.title || ctxSong.name, driveId: ctxSong.driveId, driveSlot: ctxSong.driveSlot, source: ctxSong.source, addedAt: Date.now() });
+    await window.SonattaApp.saveDoc('playlists_' + user.uid, playlistId, { ...data, songs });
+    showToast(`✅ Agregado a "${playlistName}"`, 'success');
+    document.getElementById('playlistPickerModal')?.remove();
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+function showCreatePlaylistModal() {
+  document.getElementById('playlistPickerModal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'createPlaylistModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px';
+  modal.innerHTML = `
+    <div style="width:100%;max-width:360px;background:var(--bg3);border-radius:20px;padding:24px;border:1px solid rgba(255,255,255,0.1)">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text);margin-bottom:16px">Nueva playlist</h3>
+      <input id="newPlaylistName" type="text" placeholder="Nombre de la playlist" maxlength="50"
+        style="width:100%;padding:13px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text);font-size:0.9rem;outline:none;font-family:'DM Sans',sans-serif;margin-bottom:16px"
+        onfocus="this.style.borderColor='rgba(124,92,252,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
+        onkeydown="if(event.key==='Enter')createPlaylistAndAdd()">
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('createPlaylistModal').remove()" style="flex:1;padding:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text2);cursor:pointer;font-family:'Syne',sans-serif;font-weight:600">Cancelar</button>
+        <button onclick="createPlaylistAndAdd()" style="flex:1;padding:12px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;box-shadow:0 4px 16px rgba(124,92,252,0.3)">Crear</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+  setTimeout(() => document.getElementById('newPlaylistName')?.focus(), 100);
+}
+
+async function createPlaylistAndAdd() {
+  const nameEl = document.getElementById('newPlaylistName');
+  const name = nameEl?.value.trim();
+  if (!name) { showToast('Escribe un nombre', 'error'); return; }
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+
+  try {
+    const playlistId = 'pl_' + Date.now();
+    const songs = ctxSong ? [{ id: ctxSong.id, title: ctxSong.title || ctxSong.name, driveId: ctxSong.driveId, driveSlot: ctxSong.driveSlot, source: ctxSong.source, addedAt: Date.now() }] : [];
+    await window.SonattaApp.saveDoc('playlists_' + user.uid, playlistId, { name, songs, createdAt: Date.now() });
+    showToast(`✅ Playlist "${name}" creada`, 'success');
+    document.getElementById('createPlaylistModal')?.remove();
+    loadPlaylists(); // actualizar pantalla de playlists
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 // ══ NUBES — actualizar card de Drive ═══════════════════════════════
@@ -3893,5 +4047,150 @@ function onFoldersScreenEnter() {
 }
 
 </script>
+
+// ── SISTEMA DE PLAYLISTS ──────────────────────────────────────────────────────
+async function loadPlaylists() {
+  const user = window.SonattaApp?.currentUser;
+  const container = document.getElementById('playlistsContent');
+  if (!container) return;
+  if (!user) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)">Inicia sesión para ver tus playlists</div>';
+    return;
+  }
+
+  try {
+    const snap = await window.SonattaApp.getDocs('playlists_' + user.uid);
+    let playlists = [];
+    if (snap && !snap.empty) snap.forEach(d => playlists.push({ id: d.id, ...d.data() }));
+
+    if (!playlists.length) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+          <div style="width:72px;height:72px;border-radius:22px;background:rgba(124,92,252,0.1);border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px">🎶</div>
+          <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px">Sin playlists aún</div>
+          <div style="font-size:0.8rem;color:var(--text3);margin-bottom:20px">Crea tu primera lista de reproducción</div>
+          <button onclick="showCreatePlaylistModal()" style="padding:12px 24px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem">Crear playlist</button>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = playlists.map(pl => `
+      <div onclick="openPlaylist('${pl.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;cursor:pointer;transition:background 0.15s;border:1px solid rgba(255,255,255,0.05);margin-bottom:8px;background:rgba(255,255,255,0.03)"
+        onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+        <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(124,92,252,0.3),rgba(139,92,246,0.2));border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">🎶</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(pl.name)}</div>
+          <div style="font-size:0.72rem;color:var(--text3);margin-top:3px">${(pl.songs||[]).length} canción(es)</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="event.stopPropagation();deletePlaylist('${pl.id}','${escHtml(pl.name)}')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:6px;border-radius:8px;font-size:1rem;transition:color 0.2s" title="Eliminar">🗑</button>
+          <span style="color:var(--text3);font-size:1.2rem">›</span>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red)">Error cargando playlists</div>';
+  }
+}
+
+async function openPlaylist(playlistId) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+  if (!snap.exists()) return;
+  const pl = { id: playlistId, ...snap.data() };
+  showPlaylistDetail(pl);
+}
+
+function showPlaylistDetail(pl) {
+  const existing = document.getElementById('playlistDetailModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'playlistDetailModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9990;display:flex;flex-direction:column;animation:fadeIn 0.2s ease';
+
+  const songs = pl.songs || [];
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;padding:52px 20px 16px;background:var(--bg);position:sticky;top:0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <button onclick="document.getElementById('playlistDetailModal').remove()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--text2);width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">←</button>
+      <div style="flex:1">
+        <h2 style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;color:var(--text)">${escHtml(pl.name)}</h2>
+        <p style="font-size:0.75rem;color:var(--text3)">${songs.length} canción(es)</p>
+      </div>
+      ${songs.length ? `<button onclick="playPlaylist('${pl.id}')" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.82rem;box-shadow:0 4px 16px rgba(124,92,252,0.3)">▶ Reproducir</button>` : ''}
+    </div>
+    <div style="flex:1;overflow-y:auto">
+      ${songs.length ? songs.map((s, i) => `
+        <div onclick="playPlaylistSong('${pl.id}',${i})" style="display:flex;align-items:center;gap:12px;padding:12px 20px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s"
+          onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+          <span style="font-size:0.75rem;color:var(--text3);width:20px;text-align:center">${i+1}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.88rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.title||s.name||'Sin título')}</div>
+            <div style="font-size:0.72rem;color:var(--text3);margin-top:2px">${s.source==='gdrive'?'🔵 Drive':'📱 Local'}</div>
+          </div>
+          <button onclick="event.stopPropagation();removeFromPlaylist('${pl.id}',${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:6px;border-radius:8px;font-size:0.9rem;opacity:0;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">✕</button>
+        </div>`).join('') :
+        '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:2rem;margin-bottom:12px">🎵</div>Playlist vacía</div>'}
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function playPlaylist(playlistId) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+  if (!snap.exists()) return;
+  const songs = snap.data().songs || [];
+  if (!songs.length) return;
+  // Poner todas las canciones en la cola
+  window.SonattaApp.queue = [...songs];
+  playPlaylistSong(playlistId, 0);
+}
+
+async function playPlaylistSong(playlistId, index) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+  if (!snap.exists()) return;
+  const songs = snap.data().songs || [];
+  const s = songs[index];
+  if (!s) return;
+
+  // Buscar la canción en allDriveSongs o SonattaApp.songs
+  const fullSong = allDriveSongs.find(x => x.id === s.id) ||
+                   window.SonattaApp?.songs?.find(x => x.id === s.id) || s;
+
+  // Usar playSongFromList si existe en la lista actual
+  const idx = getFilteredSongs().findIndex(x => x.id === s.id);
+  if (idx !== -1) {
+    playSongFromList(idx);
+  } else {
+    showToast('Conecta la nube para reproducir esta canción', 'error');
+  }
+}
+
+async function removeFromPlaylist(playlistId, songIndex) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+  if (!snap.exists()) return;
+  const data = snap.data();
+  data.songs.splice(songIndex, 1);
+  await window.SonattaApp.saveDoc('playlists_' + user.uid, playlistId, data);
+  showToast('Canción eliminada de la playlist');
+  openPlaylist(playlistId); // refrescar
+  document.getElementById('playlistDetailModal')?.remove();
+}
+
+async function deletePlaylist(playlistId, name) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  if (!confirm(\`¿Eliminar la playlist "${name}"?\`)) return;
+  await window.SonattaApp.deleteDoc('playlists_' + user.uid, playlistId);
+  showToast('Playlist eliminada');
+  loadPlaylists();
+}
+
 </body>
 </html>
