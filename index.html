@@ -3604,17 +3604,21 @@ async function addSongToPlaylist(playlistId, playlistName) {
   if (!user) return;
 
   try {
-    const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
-    const data = snap.exists() ? snap.data() : { name: playlistName, songs: [] };
-    const songs = data.songs || [];
-
-    if (songs.find(s => s.id === ctxSong.id)) {
+    const userSnap = await window.SonattaApp.getDoc('users', user.uid);
+    const userData = userSnap.exists() ? userSnap.data() : {};
+    const playlists = userData.playlists || [];
+    const plIdx = playlists.findIndex(p => p.id === playlistId);
+    if (plIdx === -1) { showToast('Playlist no encontrada', 'error'); return; }
+    const pl = playlists[plIdx];
+    if ((pl.songs||[]).find(s => s.id === ctxSong.id)) {
       showToast('Ya está en esta playlist');
       document.getElementById('playlistPickerModal')?.remove();
       return;
     }
-    songs.push({ id: ctxSong.id, title: ctxSong.title || ctxSong.name, driveId: ctxSong.driveId, driveSlot: ctxSong.driveSlot, source: ctxSong.source, addedAt: Date.now() });
-    await window.SonattaApp.saveDoc('playlists_' + user.uid, playlistId, { ...data, songs });
+    pl.songs = pl.songs || [];
+    pl.songs.push({ id: ctxSong.id, title: ctxSong.title || ctxSong.name, driveId: ctxSong.driveId, driveSlot: ctxSong.driveSlot||0, source: ctxSong.source, addedAt: Date.now() });
+    playlists[plIdx] = pl;
+    await window.SonattaApp.saveDoc('users', user.uid, { playlists });
     showToast(`✅ Agregado a "${playlistName}"`, 'success');
     document.getElementById('playlistPickerModal')?.remove();
   } catch(e) {
@@ -3653,11 +3657,16 @@ async function createPlaylistAndAdd() {
 
   try {
     const playlistId = 'pl_' + Date.now();
-    const songs = ctxSong ? [{ id: ctxSong.id, title: ctxSong.title || ctxSong.name, driveId: ctxSong.driveId, driveSlot: ctxSong.driveSlot, source: ctxSong.source, addedAt: Date.now() }] : [];
-    await window.SonattaApp.saveDoc('playlists_' + user.uid, playlistId, { name, songs, createdAt: Date.now() });
+    const newSong = ctxSong ? [{ id: ctxSong.id, title: ctxSong.title || ctxSong.name, driveId: ctxSong.driveId, driveSlot: ctxSong.driveSlot||0, source: ctxSong.source, addedAt: Date.now() }] : [];
+    // Cargar playlists actuales del usuario y agregar la nueva
+    const userSnap = await window.SonattaApp.getDoc('users', user.uid);
+    const userData = userSnap.exists() ? userSnap.data() : {};
+    const existingPlaylists = userData.playlists || [];
+    existingPlaylists.push({ id: playlistId, name, songs: newSong, createdAt: Date.now() });
+    await window.SonattaApp.saveDoc('users', user.uid, { playlists: existingPlaylists });
     showToast(`✅ Playlist "${name}" creada`, 'success');
     document.getElementById('createPlaylistModal')?.remove();
-    loadPlaylists(); // actualizar pantalla de playlists
+    loadPlaylists();
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
   }
@@ -4070,10 +4079,10 @@ async function loadPlaylists() {
   }
 
   try {
-    const snap = await window.SonattaApp.getDocs('playlists_' + user.uid);
+    const snap = await window.SonattaApp.getDoc('users', user.uid);
     let playlists = [];
-    if (snap && snap.docs && snap.docs.length > 0) {
-      snap.forEach(d => playlists.push({ id: d.id, ...d.data() }));
+    if (snap.exists() && snap.data().playlists) {
+      playlists = snap.data().playlists;
     }
 
     if (!playlists.length) {
@@ -4108,9 +4117,11 @@ async function loadPlaylists() {
 async function openPlaylist(playlistId) {
   const user = window.SonattaApp?.currentUser;
   if (!user) return;
-  const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+  const snap = await window.SonattaApp.getDoc('users', user.uid);
   if (!snap.exists()) return;
-  const pl = { id: playlistId, ...snap.data() };
+  const playlists = snap.data().playlists || [];
+  const pl = playlists.find(p => p.id === playlistId);
+  if (!pl) return;
   showPlaylistDetail(pl);
 }
 
@@ -4152,9 +4163,11 @@ function showPlaylistDetail(pl) {
 async function playPlaylist(playlistId) {
   const user = window.SonattaApp?.currentUser;
   if (!user) return;
-  const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+  const snap = await window.SonattaApp.getDoc('users', user.uid);
   if (!snap.exists()) return;
-  const songs = snap.data().songs || [];
+  const playlists = snap.data().playlists || [];
+  const plData = playlists.find(p => p.id === playlistId);
+  const songs = plData ? (plData.songs || []) : [];
   if (!songs.length) return;
   // Poner todas las canciones en la cola
   window.SonattaApp.queue = [...songs];
@@ -4164,9 +4177,11 @@ async function playPlaylist(playlistId) {
 async function playPlaylistSong(playlistId, index) {
   const user = window.SonattaApp?.currentUser;
   if (!user) return;
-  const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+  const snap = await window.SonattaApp.getDoc('users', user.uid);
   if (!snap.exists()) return;
-  const songs = snap.data().songs || [];
+  const playlists = snap.data().playlists || [];
+  const plData = playlists.find(p => p.id === playlistId);
+  const songs = plData ? (plData.songs || []) : [];
   const s = songs[index];
   if (!s) return;
 
@@ -4186,11 +4201,13 @@ async function playPlaylistSong(playlistId, index) {
 async function removeFromPlaylist(playlistId, songIndex) {
   const user = window.SonattaApp?.currentUser;
   if (!user) return;
-  const snap = await window.SonattaApp.getDoc('playlists_' + user.uid, playlistId);
+  const snap = await window.SonattaApp.getDoc('users', user.uid);
   if (!snap.exists()) return;
-  const data = snap.data();
-  data.songs.splice(songIndex, 1);
-  await window.SonattaApp.saveDoc('playlists_' + user.uid, playlistId, data);
+  const pls = snap.data().playlists || [];
+  const plIdx2 = pls.findIndex(p => p.id === playlistId);
+  if (plIdx2 === -1) return;
+  pls[plIdx2].songs.splice(songIndex, 1);
+  await window.SonattaApp.saveDoc('users', user.uid, { playlists: pls });
   showToast('Canción eliminada de la playlist');
   openPlaylist(playlistId); // refrescar
   document.getElementById('playlistDetailModal')?.remove();
@@ -4200,7 +4217,10 @@ async function deletePlaylist(playlistId, name) {
   const user = window.SonattaApp?.currentUser;
   if (!user) return;
   if (!confirm(\`¿Eliminar la playlist "${name}"?\`)) return;
-  await window.SonattaApp.deleteDoc('playlists_' + user.uid, playlistId);
+  const delSnap = await window.SonattaApp.getDoc('users', user.uid);
+  if (!delSnap.exists()) return;
+  const updPls = (delSnap.data().playlists || []).filter(p => p.id !== playlistId);
+  await window.SonattaApp.saveDoc('users', user.uid, { playlists: updPls });
   showToast('Playlist eliminada');
   loadPlaylists();
 }
