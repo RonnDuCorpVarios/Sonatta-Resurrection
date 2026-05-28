@@ -3020,6 +3020,208 @@ function initAudioListeners() {
 
 document.addEventListener('firebaseReady', initAudioListeners);
 if (window.firebaseReady) initAudioListeners();
+
+
+
+// ── SISTEMA DE PLAYLISTS ──────────────────────────────────────────────────────
+async function loadPlaylists() {
+  const user = window.SonattaApp?.currentUser;
+  const container = document.getElementById('playlistsContent');
+  if (!container) return;
+  if (!user) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)">Inicia sesión para ver tus playlists</div>';
+    return;
+  }
+
+  try {
+    const snap = await window.SonattaApp.getDoc('users', user.uid);
+    let playlists = [];
+    if (snap.exists() && snap.data().playlists) {
+      playlists = snap.data().playlists;
+    }
+
+    if (!playlists.length) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:60px 20px;color:var(--text3)">
+          <div style="width:72px;height:72px;border-radius:22px;background:rgba(124,92,252,0.1);border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px">🎶</div>
+          <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px">Sin playlists aún</div>
+          <div style="font-size:0.8rem;color:var(--text3);margin-bottom:20px">Crea tu primera lista de reproducción</div>
+          <button onclick="showCreatePlaylistModal()" style="padding:12px 24px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem">Crear playlist</button>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = playlists.map(pl => `
+      <div onclick="openPlaylist('${pl.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;cursor:pointer;transition:background 0.15s;border:1px solid rgba(255,255,255,0.05);margin-bottom:8px;background:rgba(255,255,255,0.03)"
+        onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+        <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(124,92,252,0.3),rgba(139,92,246,0.2));border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">🎶</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(pl.name)}</div>
+          <div style="font-size:0.72rem;color:var(--text3);margin-top:3px">${(pl.songs||[]).length} canción(es)</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="event.stopPropagation();deletePlaylist('${pl.id}','${escHtml(pl.name)}')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:6px;border-radius:8px;font-size:1rem;transition:color 0.2s" title="Eliminar">🗑</button>
+          <span style="color:var(--text3);font-size:1.2rem">›</span>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red)">Error cargando playlists</div>';
+  }
+}
+
+async function openPlaylist(playlistId) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  const snap = await window.SonattaApp.getDoc('users', user.uid);
+  if (!snap.exists()) return;
+  const playlists = snap.data().playlists || [];
+  const pl = playlists.find(p => p.id === playlistId);
+  if (!pl) return;
+  showPlaylistDetail(pl);
+}
+
+function showPlaylistDetail(pl) {
+  const existing = document.getElementById('playlistDetailModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'playlistDetailModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9990;display:flex;flex-direction:column;animation:fadeIn 0.2s ease';
+
+  const songs = pl.songs || [];
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;padding:52px 20px 16px;background:var(--bg);position:sticky;top:0;border-bottom:1px solid rgba(255,255,255,0.06)">
+      <button onclick="document.getElementById('playlistDetailModal').remove()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--text2);width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">←</button>
+      <div style="flex:1">
+        <h2 style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;color:var(--text)">${escHtml(pl.name)}</h2>
+        <p style="font-size:0.75rem;color:var(--text3)">${songs.length} canción(es)</p>
+      </div>
+      ${songs.length ? `<button onclick="playPlaylist('${pl.id}')" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.82rem;box-shadow:0 4px 16px rgba(124,92,252,0.3)">▶ Reproducir</button>` : ''}
+    </div>
+    <div style="flex:1;overflow-y:auto">
+      ${songs.length ? songs.map((s, i) => `
+        <div onclick="playPlaylistSong('${pl.id}',${i})" style="display:flex;align-items:center;gap:12px;padding:12px 20px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s"
+          onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+          <span style="font-size:0.75rem;color:var(--text3);width:20px;text-align:center">${i+1}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.88rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.title||s.name||'Sin título')}</div>
+            <div style="font-size:0.72rem;color:var(--text3);margin-top:2px">${s.source==='gdrive'?'🔵 Drive':'📱 Local'}</div>
+          </div>
+          <button onclick="event.stopPropagation();removeFromPlaylist('${pl.id}',${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:6px;border-radius:8px;font-size:0.9rem;opacity:0;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">✕</button>
+        </div>`).join('') :
+        '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:2rem;margin-bottom:12px">🎵</div>Playlist vacía</div>'}
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function playPlaylist(playlistId) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  const snap = await window.SonattaApp.getDoc('users', user.uid);
+  if (!snap.exists()) return;
+  const playlists = snap.data().playlists || [];
+  const plData = playlists.find(p => p.id === playlistId);
+  const songs = plData ? (plData.songs || []) : [];
+  if (!songs.length) return;
+  // Poner todas las canciones en la cola
+  window.SonattaApp.queue = [...songs];
+  playPlaylistSong(playlistId, 0);
+}
+
+async function playPlaylistSong(playlistId, index) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  const snap = await window.SonattaApp.getDoc('users', user.uid);
+  if (!snap.exists()) return;
+  const playlists = snap.data().playlists || [];
+  const plData = playlists.find(p => p.id === playlistId);
+  const songs = plData ? (plData.songs || []) : [];
+  const s = songs[index];
+  if (!s) return;
+
+  // Buscar la canción en allDriveSongs o SonattaApp.songs
+  const fullSong = allDriveSongs.find(x => x.id === s.id) ||
+                   window.SonattaApp?.songs?.find(x => x.id === s.id) || s;
+
+  // Usar playSongFromList si existe en la lista actual
+  const idx = getFilteredSongs().findIndex(x => x.id === s.id);
+  if (idx !== -1) {
+    playSongFromList(idx);
+  } else {
+    showToast('Conecta la nube para reproducir esta canción', 'error');
+  }
+}
+
+async function removeFromPlaylist(playlistId, songIndex) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  const snap = await window.SonattaApp.getDoc('users', user.uid);
+  if (!snap.exists()) return;
+  const pls = snap.data().playlists || [];
+  const plIdx2 = pls.findIndex(p => p.id === playlistId);
+  if (plIdx2 === -1) return;
+  pls[plIdx2].songs.splice(songIndex, 1);
+  await window.SonattaApp.saveDoc('users', user.uid, { playlists: pls });
+  showToast('Canción eliminada de la playlist');
+  openPlaylist(playlistId); // refrescar
+  document.getElementById('playlistDetailModal')?.remove();
+}
+
+async function deletePlaylist(playlistId, name) {
+  const user = window.SonattaApp?.currentUser;
+  if (!user) return;
+  if (!confirm('¿Eliminar la playlist "' + name + '"?')) return;
+  const delSnap = await window.SonattaApp.getDoc('users', user.uid);
+  if (!delSnap.exists()) return;
+  const updPls = (delSnap.data().playlists || []).filter(p => p.id !== playlistId);
+  await window.SonattaApp.saveDoc('users', user.uid, { playlists: updPls });
+  showToast('Playlist eliminada');
+  loadPlaylists();
+}
+
+
+// ── Migración de playlists antiguas ──────────────────────────────────────────
+async function migrateLegacyPlaylists(uid) {
+  try {
+    // Verificar si ya se migró
+    const snap = await window.SonattaApp.getDoc('users', uid);
+    if (snap.exists() && snap.data()._playlistsMigrated) return;
+
+    // Leer playlists viejas (colección playlists_{uid})
+    const oldSnap = await window.SonattaApp.getDocs('playlists_' + uid);
+    if (!oldSnap || oldSnap.empty) {
+      // Marcar como migrado aunque no haya nada
+      await window.SonattaApp.saveDoc('users', uid, { _playlistsMigrated: true });
+      return;
+    }
+
+    const userData = snap.exists() ? snap.data() : {};
+    const existingPlaylists = userData.playlists || [];
+    const existingIds = existingPlaylists.map(p => p.id);
+
+    let migrated = 0;
+    oldSnap.forEach(d => {
+      if (!existingIds.includes(d.id)) {
+        existingPlaylists.push({ id: d.id, ...d.data() });
+        migrated++;
+      }
+    });
+
+    if (migrated > 0) {
+      await window.SonattaApp.saveDoc('users', uid, {
+        playlists: existingPlaylists,
+        _playlistsMigrated: true
+      });
+      console.log(`✅ Migradas ${migrated} playlists al nuevo formato`);
+    } else {
+      await window.SonattaApp.saveDoc('users', uid, { _playlistsMigrated: true });
+    }
+  } catch(e) {
+    console.log('Migración de playlists:', e.message);
+  }
+}
+
 </script>
 
 
@@ -4072,206 +4274,7 @@ function onFoldersScreenEnter() {
 
 </script>
 
-<script>
-// ── SISTEMA DE PLAYLISTS ──────────────────────────────────────────────────────
-async function loadPlaylists() {
-  const user = window.SonattaApp?.currentUser;
-  const container = document.getElementById('playlistsContent');
-  if (!container) return;
-  if (!user) {
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)">Inicia sesión para ver tus playlists</div>';
-    return;
-  }
 
-  try {
-    const snap = await window.SonattaApp.getDoc('users', user.uid);
-    let playlists = [];
-    if (snap.exists() && snap.data().playlists) {
-      playlists = snap.data().playlists;
-    }
-
-    if (!playlists.length) {
-      container.innerHTML = `
-        <div style="text-align:center;padding:60px 20px;color:var(--text3)">
-          <div style="width:72px;height:72px;border-radius:22px;background:rgba(124,92,252,0.1);border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px">🎶</div>
-          <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px">Sin playlists aún</div>
-          <div style="font-size:0.8rem;color:var(--text3);margin-bottom:20px">Crea tu primera lista de reproducción</div>
-          <button onclick="showCreatePlaylistModal()" style="padding:12px 24px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem">Crear playlist</button>
-        </div>`;
-      return;
-    }
-
-    container.innerHTML = playlists.map(pl => `
-      <div onclick="openPlaylist('${pl.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;cursor:pointer;transition:background 0.15s;border:1px solid rgba(255,255,255,0.05);margin-bottom:8px;background:rgba(255,255,255,0.03)"
-        onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-        <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(124,92,252,0.3),rgba(139,92,246,0.2));border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">🎶</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(pl.name)}</div>
-          <div style="font-size:0.72rem;color:var(--text3);margin-top:3px">${(pl.songs||[]).length} canción(es)</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button onclick="event.stopPropagation();deletePlaylist('${pl.id}','${escHtml(pl.name)}')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:6px;border-radius:8px;font-size:1rem;transition:color 0.2s" title="Eliminar">🗑</button>
-          <span style="color:var(--text3);font-size:1.2rem">›</span>
-        </div>
-      </div>`).join('');
-  } catch(e) {
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red)">Error cargando playlists</div>';
-  }
-}
-
-async function openPlaylist(playlistId) {
-  const user = window.SonattaApp?.currentUser;
-  if (!user) return;
-  const snap = await window.SonattaApp.getDoc('users', user.uid);
-  if (!snap.exists()) return;
-  const playlists = snap.data().playlists || [];
-  const pl = playlists.find(p => p.id === playlistId);
-  if (!pl) return;
-  showPlaylistDetail(pl);
-}
-
-function showPlaylistDetail(pl) {
-  const existing = document.getElementById('playlistDetailModal');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'playlistDetailModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9990;display:flex;flex-direction:column;animation:fadeIn 0.2s ease';
-
-  const songs = pl.songs || [];
-  modal.innerHTML = `
-    <div style="display:flex;align-items:center;gap:14px;padding:52px 20px 16px;background:var(--bg);position:sticky;top:0;border-bottom:1px solid rgba(255,255,255,0.06)">
-      <button onclick="document.getElementById('playlistDetailModal').remove()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--text2);width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">←</button>
-      <div style="flex:1">
-        <h2 style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;color:var(--text)">${escHtml(pl.name)}</h2>
-        <p style="font-size:0.75rem;color:var(--text3)">${songs.length} canción(es)</p>
-      </div>
-      ${songs.length ? `<button onclick="playPlaylist('${pl.id}')" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.82rem;box-shadow:0 4px 16px rgba(124,92,252,0.3)">▶ Reproducir</button>` : ''}
-    </div>
-    <div style="flex:1;overflow-y:auto">
-      ${songs.length ? songs.map((s, i) => `
-        <div onclick="playPlaylistSong('${pl.id}',${i})" style="display:flex;align-items:center;gap:12px;padding:12px 20px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s"
-          onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
-          <span style="font-size:0.75rem;color:var(--text3);width:20px;text-align:center">${i+1}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.88rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.title||s.name||'Sin título')}</div>
-            <div style="font-size:0.72rem;color:var(--text3);margin-top:2px">${s.source==='gdrive'?'🔵 Drive':'📱 Local'}</div>
-          </div>
-          <button onclick="event.stopPropagation();removeFromPlaylist('${pl.id}',${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:6px;border-radius:8px;font-size:0.9rem;opacity:0;transition:opacity 0.2s"
-            onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">✕</button>
-        </div>`).join('') :
-        '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:2rem;margin-bottom:12px">🎵</div>Playlist vacía</div>'}
-    </div>`;
-  document.body.appendChild(modal);
-}
-
-async function playPlaylist(playlistId) {
-  const user = window.SonattaApp?.currentUser;
-  if (!user) return;
-  const snap = await window.SonattaApp.getDoc('users', user.uid);
-  if (!snap.exists()) return;
-  const playlists = snap.data().playlists || [];
-  const plData = playlists.find(p => p.id === playlistId);
-  const songs = plData ? (plData.songs || []) : [];
-  if (!songs.length) return;
-  // Poner todas las canciones en la cola
-  window.SonattaApp.queue = [...songs];
-  playPlaylistSong(playlistId, 0);
-}
-
-async function playPlaylistSong(playlistId, index) {
-  const user = window.SonattaApp?.currentUser;
-  if (!user) return;
-  const snap = await window.SonattaApp.getDoc('users', user.uid);
-  if (!snap.exists()) return;
-  const playlists = snap.data().playlists || [];
-  const plData = playlists.find(p => p.id === playlistId);
-  const songs = plData ? (plData.songs || []) : [];
-  const s = songs[index];
-  if (!s) return;
-
-  // Buscar la canción en allDriveSongs o SonattaApp.songs
-  const fullSong = allDriveSongs.find(x => x.id === s.id) ||
-                   window.SonattaApp?.songs?.find(x => x.id === s.id) || s;
-
-  // Usar playSongFromList si existe en la lista actual
-  const idx = getFilteredSongs().findIndex(x => x.id === s.id);
-  if (idx !== -1) {
-    playSongFromList(idx);
-  } else {
-    showToast('Conecta la nube para reproducir esta canción', 'error');
-  }
-}
-
-async function removeFromPlaylist(playlistId, songIndex) {
-  const user = window.SonattaApp?.currentUser;
-  if (!user) return;
-  const snap = await window.SonattaApp.getDoc('users', user.uid);
-  if (!snap.exists()) return;
-  const pls = snap.data().playlists || [];
-  const plIdx2 = pls.findIndex(p => p.id === playlistId);
-  if (plIdx2 === -1) return;
-  pls[plIdx2].songs.splice(songIndex, 1);
-  await window.SonattaApp.saveDoc('users', user.uid, { playlists: pls });
-  showToast('Canción eliminada de la playlist');
-  openPlaylist(playlistId); // refrescar
-  document.getElementById('playlistDetailModal')?.remove();
-}
-
-async function deletePlaylist(playlistId, name) {
-  const user = window.SonattaApp?.currentUser;
-  if (!user) return;
-  if (!confirm('¿Eliminar la playlist "' + name + '"?')) return;
-  const delSnap = await window.SonattaApp.getDoc('users', user.uid);
-  if (!delSnap.exists()) return;
-  const updPls = (delSnap.data().playlists || []).filter(p => p.id !== playlistId);
-  await window.SonattaApp.saveDoc('users', user.uid, { playlists: updPls });
-  showToast('Playlist eliminada');
-  loadPlaylists();
-}
-
-
-// ── Migración de playlists antiguas ──────────────────────────────────────────
-async function migrateLegacyPlaylists(uid) {
-  try {
-    // Verificar si ya se migró
-    const snap = await window.SonattaApp.getDoc('users', uid);
-    if (snap.exists() && snap.data()._playlistsMigrated) return;
-
-    // Leer playlists viejas (colección playlists_{uid})
-    const oldSnap = await window.SonattaApp.getDocs('playlists_' + uid);
-    if (!oldSnap || oldSnap.empty) {
-      // Marcar como migrado aunque no haya nada
-      await window.SonattaApp.saveDoc('users', uid, { _playlistsMigrated: true });
-      return;
-    }
-
-    const userData = snap.exists() ? snap.data() : {};
-    const existingPlaylists = userData.playlists || [];
-    const existingIds = existingPlaylists.map(p => p.id);
-
-    let migrated = 0;
-    oldSnap.forEach(d => {
-      if (!existingIds.includes(d.id)) {
-        existingPlaylists.push({ id: d.id, ...d.data() });
-        migrated++;
-      }
-    });
-
-    if (migrated > 0) {
-      await window.SonattaApp.saveDoc('users', uid, {
-        playlists: existingPlaylists,
-        _playlistsMigrated: true
-      });
-      console.log(`✅ Migradas ${migrated} playlists al nuevo formato`);
-    } else {
-      await window.SonattaApp.saveDoc('users', uid, { _playlistsMigrated: true });
-    }
-  } catch(e) {
-    console.log('Migración de playlists:', e.message);
-  }
-}
-</script>
 
 </body>
 </html>
