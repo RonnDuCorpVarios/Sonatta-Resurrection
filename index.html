@@ -1885,9 +1885,235 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 .empty-btn:hover { transform: translateY(-1px) !important; box-shadow: 0 6px 20px rgba(124,92,252,0.3) !important; }
 
+
+/* max-width removido */
+
+
+/* ── TIPOGRAFÍA COMPACTA ─────────────────────── */
+/* Reducir títulos de pantallas para que no se estiren */
+#homeGreeting,
+.screen h2,
+[style*="font-size:1.5rem"][style*="Syne"],
+[style*="font-size:1.6rem"] {
+  font-size: 1.3rem !important;
+}
+/* Subtítulos */
+[style*="font-size:0.78rem"],
+[style*="font-size:0.8rem"] {
+  font-size: 0.77rem !important;
+}
+/* Song titles */
+.song-row-title, .song-grid-title, .sp-title, .mini-title {
+  font-size: 0.88rem !important;
+}
+/* Meta info */
+.song-row-meta, .song-grid-meta {
+  font-size: 0.7rem !important;
+}
+/* Cloud stats */
+.cloud-stat-num {
+  font-size: 1.2rem !important;
+}
+/* Nav labels */
+.nav-label {
+  font-size: 0.58rem !important;
+}
+/* Screen headers compactos */
+.screen-header h2 {
+  font-size: 1.3rem !important;
+}
+
+
+/* ── CONTENIDO COMPACTO — sin bloques grises ─────────────────── */
+/* Limitar ancho del contenido interno, no del contenedor */
+.content-area {
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Padding lateral en pantallas anchas */
+@media (min-width: 640px) {
+  .songs-list-view .song-row,
+  .folder-item,
+  .cloud-account-card,
+  #homeContent > div {
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .songs-toolbar,
+  #songsPlayer,
+  #folderCloudSelector,
+  #folderBreadcrumb {
+    max-width: 100%;
+  }
+  #globalNav {
+    max-width: 100%;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE — MÓVIL + ESCRITORIO
+═══════════════════════════════════════════════ */
+
+/* ── BASE: variables responsive ─────────────── */
+:root {
+  --app-max-width: 480px;
+  --content-padding: 16px;
+  --font-scale: 1;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --app-max-width: 520px;
+    --content-padding: 20px;
+    --font-scale: 1.02;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-max-width: 420px;
+    --content-padding: 24px;
+    --font-scale: 1;
+  }
+}
+
+/* ── LAYOUT ESCRITORIO ───────────────────────── */
+@media (min-width: 640px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #050508;
+    min-height: 100vh;
+  }
+
+  /* Contenedor tipo phone-frame */
+  #root-wrapper {
+    position: relative;
+    width: var(--app-max-width);
+    height: 100vh;
+    max-height: 900px;
+    overflow: hidden;
+    border-radius: 0;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06),
+                0 32px 80px rgba(0,0,0,0.8),
+                0 0 120px rgba(108,71,255,0.08);
+  }
+
+  .screen {
+    width: var(--app-max-width) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: var(--app-max-width) !important;
+  }
+
+  .bottom-nav, .nav-bottom, #globalNav {
+    width: var(--app-max-width) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: var(--app-max-width) !important;
+  }
+
+  /* Modales centrados */
+  #playlistPickerModal > div,
+  #createPlaylistModal > div,
+  #playlistDetailModal {
+    max-width: var(--app-max-width);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  #toastContainer {
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(var(--app-max-width) - 32px);
+  }
+
+  /* Song context menu */
+  #songContextMenu {
+    max-width: 220px;
+  }
+}
+
+/* ── TIPOGRAFÍA RESPONSIVE ───────────────────── */
+@media (min-width: 640px) {
+  /* Títulos de pantalla */
+  #homeGreeting { font-size: 1.4rem !important; }
+
+  /* Song titles */
+  .song-row-title { font-size: 0.9rem !important; }
+  .song-grid-title { font-size: 0.82rem !important; }
+
+  /* Nav labels visibles en escritorio */
+  .nav-label { font-size: 0.62rem !important; display: block !important; }
+
+  /* Cloud cards */
+  .cloud-account-name { font-size: 1rem !important; }
+  .cloud-stat-num { font-size: 1.3rem !important; }
+}
+
+/* ── PANTALLA DE LOGIN/REGISTER — centrada ───── */
+@media (min-width: 640px) {
+  #welcomeScreen,
+  #loginScreen,
+  #registerScreen {
+    width: var(--app-max-width) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
+/* ── DECORACIÓN ESCRITORIO ───────────────────── */
+@media (min-width: 640px) {
+  /* Fondo escritorio con patrón */
+  body::after {
+    content: 'SONATTA';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Syne', sans-serif;
+    font-size: 22vw;
+    font-weight: 900;
+    color: rgba(108,71,255,0.03);
+    letter-spacing: -0.05em;
+    pointer-events: none;
+    z-index: 0;
+    white-space: nowrap;
+  }
+}
+
+/* ── GRID RESPONSIVE ─────────────────────────── */
+@media (min-width: 640px) {
+  .songs-grid-view {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+}
+
+/* ── SCROLLBAR EN ESCRITORIO ─────────────────── */
+@media (min-width: 640px) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(108,71,255,0.3) transparent;
+  }
+  *::-webkit-scrollbar { width: 4px; }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(108,71,255,0.3);
+    border-radius: 4px;
+  }
+}
+
 </style>
 </head>
 <body>
+<div id="root-wrapper">
+
 
 <script>
 // ── Callback OAuth: captura el código de Google y lo envía a la ventana principal ──
@@ -4276,5 +4502,6 @@ function onFoldersScreenEnter() {
 
 
 
+</div>
 </body>
 </html>
