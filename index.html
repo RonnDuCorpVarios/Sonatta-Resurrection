@@ -1679,6 +1679,10 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   backdrop-filter: blur(16px) !important;
   border-bottom: 1px solid rgba(255,255,255,0.06) !important;
   padding: 10px 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  align-items: stretch !important;
 }
 .source-chip {
   background: var(--surface) !important;
@@ -3845,13 +3849,18 @@ function renderSongsScreen() {
     container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:3rem">🎵</div><div style="margin-top:12px">Sin canciones</div><div style="font-size:0.8rem;margin-top:6px">Conecta una nube o agrega música local</div></div>';
     return;
   }
-  // Helper: genera el HTML de la carátula para cualquier canción.
-  // Si hay coverUrl, usa lazy loading con data-cover (sin fetch, sin blob).
-  // El browser carga la imagen directamente desde la URL de Drive.
-  function coverHtml(s, extraStyle = '') {
+  // Helper: genera HTML de carátula con todos los data-* que loadCover necesita
+  function coverHtml(s) {
+    const base = `data-song-id="${s.id}" data-source="${s.source || 'local'}"
+      class="lazy-cover"
+      style="width:100%;height:100%;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s"`;
+    if (s.source === 'gdrive') {
+      // Drive: la carátula se extrae del ID3 tag via range fetch
+      return `<img ${base} data-drive-id="${s.driveId}" data-slot="${s.driveSlot || 0}" alt="">`;
+    }
+    // Local: coverUrl ya es un data URL listo para usar
     if (s.coverUrl) {
-      return `<img data-cover="${s.coverUrl}" alt="" class="lazy-cover"
-                style="width:100%;height:100%;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s;${extraStyle}">`;
+      return `<img ${base} data-cover="${s.coverUrl}" alt="">`;
     }
     return '<span style="font-size:1.4rem">🎵</span>';
   }
@@ -4210,34 +4219,33 @@ function updateGdriveCard(connected, email, songCount) { updateDriveCard(0, conn
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// CARÁTULAS — estrategia CERO CONSUMO
+// CARÁTULAS — sistema definitivo
 //
-// Google Drive ya devuelve thumbnailLink en la respuesta inicial de
-// loadGoogleDriveFiles (campo fields=thumbnailLink). Esa URL tiene
-// autenticación embebida — el browser la carga directamente como
-// cualquier <img src="...">, sin fetch, sin blob, sin objectURL,
-// sin Firebase Storage, sin consumir cuota de ningún tipo.
+// Para canciones de Google Drive:
+//   - thumbnailLink de la API no existe para MP3 (Drive no genera
+//     thumbnails de audio). La carátula está embebida en el ID3 tag.
+//   - Se descarga SOLO el header del MP3 con Range: bytes=0-262143
+//     (256 KB máx), que siempre contiene el ID3v2 tag con la imagen.
+//   - jsmediatags lee ese ArrayBuffer y extrae la portada.
+//   - Si no hay portada en el ID3, se muestra el emoji 🎵.
+//   - Las carátulas extraídas se cachean en memoria (coverCache) para
+//     no repetir la descarga al hacer scroll o al renderizar de nuevo.
 //
-// Flujo:
-//  1. loadGoogleDriveFiles guarda thumbnailLink en song.coverUrl
-//  2. renderSongsScreen pone coverUrl en data-cover del <img>
-//  3. initLazyCovers usa IntersectionObserver para asignar src
-//     solo cuando la imagen entra en pantalla (ahorra peticiones)
-//  4. Si la imagen falla (onerror) se muestra el placeholder 🎵
+// Para canciones locales:
+//   - La carátula ya viene como data URL desde handleFileImport.
+//   - Se asigna directamente al src sin ninguna descarga.
 //
-// ⚠️  NUNCA se descargan blobs de carátulas.
-//     NUNCA se hace fetch adicional por imagen.
-//     NUNCA se guarda nada en Firebase Storage.
+// CONSUMO: ~256 KB por canción visible (solo una vez, luego caché).
+//          No se usa Firebase Storage. No se sube nada.
 // ═══════════════════════════════════════════════════════════════════
 
-let lazyObserver = null;
+const coverCache = {};   // songId → dataURL | 'none'
+let lazyObserver  = null;
 
 function initLazyCovers() {
   if (lazyObserver) lazyObserver.disconnect();
 
-  // El scroll ocurre dentro de #songsList (overflow-y:auto dentro de position:fixed)
-  // Sin especificar root, el IntersectionObserver usa el viewport y NUNCA detecta
-  // las imágenes como visibles. Se debe pasar el contenedor de scroll como root.
+  // root = #songsList porque el scroll ocurre ahí (position:fixed screen)
   const scrollRoot = document.getElementById('songsList') || null;
 
   lazyObserver = new IntersectionObserver((entries) => {
@@ -4246,38 +4254,90 @@ function initLazyCovers() {
       const img = entry.target;
       lazyObserver.unobserve(img);
       if (img.dataset.loaded === 'true') return;
-
-      const coverUrl = img.dataset.cover;
-      if (!coverUrl) return;
-
-      img.onerror = () => {
-        // Si falla con =s400, intentar con la URL original sin modificar
-        if (img.src !== coverUrl) {
-          img.onerror = () => { img.style.display = 'none'; };
-          img.src = coverUrl;
-        } else {
-          img.style.display = 'none';
-        }
-      };
-      img.onload = () => {
-        img.style.opacity = '1';
-        img.dataset.loaded = 'true';
-      };
-      // Drive usa =s400 para tamaño mayor; el original puede ser =s220
-      img.src = coverUrl.includes('=s220') ? coverUrl.replace('=s220', '=s400') : coverUrl;
+      loadCover(img);
     });
-  }, {
-    root: scrollRoot,      // ← contenedor de scroll real, no el viewport
-    rootMargin: '300px',   // pre-cargar antes de que entren en pantalla
-    threshold: 0
-  });
+  }, { root: scrollRoot, rootMargin: '400px', threshold: 0 });
 
   document.querySelectorAll('img.lazy-cover:not([data-loaded="true"])').forEach(img => {
     lazyObserver.observe(img);
   });
 }
 
-// Stub de compatibilidad — ya no se usa pero puede ser llamada desde código legacy
+async function loadCover(img) {
+  const songId  = img.dataset.songId;
+  const source  = img.dataset.source;   // 'gdrive' | 'local'
+  const coverUrl = img.dataset.cover;   // data URL para local, null para drive
+
+  // ── Local: ya tiene coverUrl como data URL ──────────────────────
+  if (source !== 'gdrive') {
+    if (coverUrl) {
+      img.src = coverUrl;
+      img.onload = () => { img.style.opacity = '1'; img.dataset.loaded = 'true'; };
+      img.onerror = () => { img.style.display = 'none'; };
+    }
+    return;
+  }
+
+  // ── Drive: revisar caché primero ────────────────────────────────
+  if (coverCache[songId]) {
+    if (coverCache[songId] === 'none') { img.style.display = 'none'; return; }
+    img.src = coverCache[songId];
+    img.onload = () => { img.style.opacity = '1'; img.dataset.loaded = 'true'; };
+    return;
+  }
+
+  const driveId  = img.dataset.driveId;
+  const slot     = parseInt(img.dataset.slot || '0');
+  const acc      = driveAccounts[slot];
+  if (!acc || !acc.token || !driveId) {
+    img.style.display = 'none';
+    coverCache[songId] = 'none';
+    return;
+  }
+
+  try {
+    // Descargar solo los primeros 256 KB del MP3 (contiene el ID3v2 tag)
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${driveId}?alt=media`,
+      { headers: { Authorization: 'Bearer ' + acc.token, Range: 'bytes=0-262143' } }
+    );
+    if (!res.ok) throw new Error('fetch ' + res.status);
+    const buf = await res.arrayBuffer();
+
+    // Extraer carátula del ID3 tag con jsmediatags
+    await new Promise((resolve) => {
+      if (!window.jsmediatags) { resolve(); return; }
+      jsmediatags.read(new Blob([buf], { type: 'audio/mpeg' }), {
+        onSuccess(tag) {
+          const pic = tag.tags.picture;
+          if (pic) {
+            const b64 = pic.data.reduce((s, b) => s + String.fromCharCode(b), '');
+            const dataUrl = `data:${pic.format};base64,${btoa(b64)}`;
+            coverCache[songId] = dataUrl;
+            if (img.isConnected) {
+              img.src = dataUrl;
+              img.onload = () => { img.style.opacity = '1'; img.dataset.loaded = 'true'; };
+            }
+          } else {
+            coverCache[songId] = 'none';
+            if (img.isConnected) img.style.display = 'none';
+          }
+          resolve();
+        },
+        onError() {
+          coverCache[songId] = 'none';
+          if (img.isConnected) img.style.display = 'none';
+          resolve();
+        }
+      });
+    });
+  } catch(e) {
+    coverCache[songId] = 'none';
+    if (img.isConnected) img.style.display = 'none';
+  }
+}
+
+// Stubs de compatibilidad con código antiguo
 function loadAuthCover() {}
 function loadCoverForImg() {}
 </script>
@@ -4445,11 +4505,13 @@ function renderFolderContent({ folders, songs }) {
   const songsHtml = songs.map((f, i) => {
     const title = f.name.replace(/\.[^.]+$/, '');
     const ext = f.name.split('.').pop().toUpperCase();
-    // Usar thumbnailLink que ya viene en la respuesta de la API (sin fetch extra)
-    const coverPart = f.thumbnailLink
-      ? `<img data-cover="${f.thumbnailLink.replace('=s220','=s400')}" class="lazy-cover" alt=""
-           style="width:42px;height:42px;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">`
-      : `<span style="font-size:1.4rem">🎵</span>`;
+    const coverPart = `<img
+        data-song-id="folder_${f.id}"
+        data-source="gdrive"
+        data-drive-id="${f.id}"
+        data-slot="${folderCurrentSlot}"
+        class="lazy-cover" alt=""
+        style="width:42px;height:42px;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">`;
     return `
     <div class="folder-item" onclick="playFolderSong('${f.id}','${escHtml(f.name)}',${folderCurrentSlot},${i})">
       <div class="folder-icon song">${coverPart}</div>
