@@ -1644,8 +1644,12 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   background: linear-gradient(180deg, #0a0810 0%, #080810 100%) !important;
 }
 .fp-bg {
-  background: radial-gradient(ellipse at top, rgba(124,92,252,0.2) 0%, transparent 60%),
-              radial-gradient(ellipse at bottom right, rgba(56,189,248,0.08) 0%, transparent 50%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  filter: blur(70px) brightness(0.2) saturate(2) !important;
+  transform: scale(1.2) !important;
+  transition: background-image 0.8s ease !important;
+  z-index: 0 !important;
 }
 .fp-cover { border-radius: 28px !important; box-shadow: 0 32px 80px rgba(0,0,0,0.7) !important; }
 .fp-song-name { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; }
@@ -2382,28 +2386,41 @@ html, body {
 </div>
 
 <div id="fullPlayer" style="position:fixed;inset:0;z-index:200;background:var(--bg);flex-direction:column;display:none;overflow:hidden;">
-  <div class="fp-bg"></div>
+  <div class="fp-bg" id="fpBg"></div>
+
+  <!-- Header -->
   <div class="fp-header">
     <button class="fp-close" onclick="closeFullPlayer()">↓</button>
     <span class="fp-title-top">Reproduciendo ahora</span>
-    <div style="width:38px;"></div>
+    <button onclick="fpOpenMenu()" style="width:38px;height:38px;background:none;border:none;color:var(--text2);font-size:1.3rem;cursor:pointer;border-radius:50%">⋮</button>
   </div>
+
+  <!-- Carátula -->
   <div class="fp-cover-wrap">
-    <div class="fp-cover" style="position:relative;">
+    <div class="fp-cover" style="position:relative;" id="fullPlayerCover">
       <div class="fp-cover-placeholder" id="fpCoverPlaceholder">🎵</div>
-      <img id="fpCoverImg" src="" alt="" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+      <img id="fpCoverImg" src="" alt="" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;">
     </div>
   </div>
+
+  <!-- Info + like -->
   <div class="fp-info">
-    <div><div class="fp-song-name" id="fpTitle">—</div><div class="fp-artist-name" id="fpArtist">—</div></div>
-    <button class="fp-like-btn" id="fpLikeBtn" onclick="toggleLike()">♡</button>
+    <div style="flex:1;min-width:0;">
+      <div class="fp-song-name" id="fpTitle">—</div>
+      <div class="fp-artist-name" id="fpArtist">—</div>
+    </div>
+    <button class="fp-like-btn" id="fpLikeBtn" onclick="toggleLikeFP()">♡</button>
   </div>
+
+  <!-- Barra de progreso -->
   <div class="fp-progress-wrap">
     <div class="fp-progress-bar-wrap" id="fpProgressWrap" onclick="seekTo(event)">
       <div class="fp-progress-bar-fill" id="fpProgressFill"></div>
     </div>
     <div class="fp-times"><span id="fpCurrentTime">0:00</span><span id="fpDuration">0:00</span></div>
   </div>
+
+  <!-- Controles principales -->
   <div class="fp-controls">
     <button class="fp-ctrl-btn" id="fpShuffleBtn" onclick="toggleShuffle()">🔀</button>
     <button class="fp-prev-btn" onclick="prevSong()">⏮</button>
@@ -2411,11 +2428,24 @@ html, body {
     <button class="fp-next-btn" onclick="nextSong()">⏭</button>
     <button class="fp-ctrl-btn" id="fpRepeatBtn" onclick="toggleRepeat()">🔁</button>
   </div>
+
+  <!-- Extras: volumen + acciones -->
   <div class="fp-extras">
     <div class="fp-vol-wrap">
       <span class="fp-vol-icon">🔈</span>
       <input type="range" class="fp-vol-slider" id="fpVolume" min="0" max="100" value="100" oninput="setVolume(this.value)">
       <span class="fp-vol-icon">🔊</span>
+    </div>
+    <!-- Botones de acción -->
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button onclick="fpAddToPlaylist()" style="flex:1;padding:13px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s"
+        onmouseover="this.style.background='rgba(124,92,252,0.15)';this.style.borderColor='rgba(124,92,252,0.35)';this.style.color='var(--accent2)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='var(--text2)'">
+        <span style="font-size:1rem">🎶</span> Agregar a playlist
+      </button>
+      <button onclick="fpShareSong()" style="width:48px;height:48px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;color:var(--text2);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0"
+        onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.06)'">↗</button>
     </div>
   </div>
 </div>
@@ -3148,12 +3178,70 @@ function toggleRepeat() {
   showToast(labels[app.repeat]);
 }
 
-function toggleLike() {
-  const btn = document.getElementById('fpLikeBtn');
-  if (!btn) return;
-  const liked = btn.classList.toggle('liked');
-  btn.textContent = liked ? '♥' : '♡';
-  showToast(liked ? 'Añadida a favoritos ♥' : 'Eliminada de favoritos');
+// ── Like desde el fullPlayer ─────────────────────────────────────────
+function toggleLikeFP() {
+  const app = window.SonattaApp;
+  const song = app && app.currentSong;
+  if (!song) return;
+  const idx = favorites.indexOf(song.id);
+  if (idx === -1) {
+    favorites.push(song.id);
+    showToast('Añadida a favoritos ♥', 'success');
+  } else {
+    favorites.splice(idx, 1);
+    showToast('Eliminada de favoritos');
+  }
+  localStorage.setItem('sonatta_favs', JSON.stringify(favorites));
+  updateLikeBtn(song.id);
+  renderSongsScreen(); // actualizar corazón en lista si está visible
+}
+
+// ── Agregar a playlist desde fullPlayer ──────────────────────────────
+async function fpAddToPlaylist() {
+  const app = window.SonattaApp;
+  const song = app && app.currentSong;
+  if (!song) { showToast('No hay canción activa', 'error'); return; }
+  // Reusar ctxSong que usa addSongToPlaylist
+  ctxSong = song;
+  const user = app.currentUser;
+  if (!user) { showToast('Inicia sesión primero', 'error'); return; }
+  try {
+    const snap = await app.getDoc('users', user.uid);
+    const playlists = snap.exists() ? (snap.data().playlists || []) : [];
+    showPlaylistPicker(playlists, song);
+  } catch(e) {
+    showToast('Error cargando playlists', 'error');
+  }
+}
+
+// ── Compartir desde fullPlayer ───────────────────────────────────────
+function fpShareSong() {
+  const song = window.SonattaApp?.currentSong;
+  if (!song) return;
+  const text = `🎵 Escuchando: ${song.title || song.name}${song.artist ? ' — ' + song.artist : ''} en Sonatta`;
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+  } else {
+    navigator.clipboard?.writeText(text);
+    showToast('Copiado al portapapeles 📋');
+  }
+}
+
+// ── Menú opciones ────────────────────────────────────────────────────
+function fpOpenMenu() {
+  const song = window.SonattaApp?.currentSong;
+  if (!song) return;
+  ctxSong = song;
+  const menu = document.getElementById('songContextMenu');
+  if (menu) {
+    const isFav = favorites.includes(song.id);
+    const favIcon = document.getElementById('ctxFavIcon');
+    const favText = document.getElementById('ctxFavText');
+    if (favIcon) favIcon.textContent = isFav ? '♥' : '♡';
+    if (favText) favText.textContent = isFav ? 'Quitar de favoritos' : 'Agregar a favoritos';
+    menu.style.cssText = 'display:block;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;width:calc(100% - 40px);max-width:360px';
+    document.addEventListener('click', () => { menu.style.display = 'none'; }, { once: true });
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -3178,34 +3266,34 @@ function seekTo(event) {
 // ACTUALIZAR UI DEL PLAYER
 // ═══════════════════════════════════════════
 function updatePlayerUI(song) {
-  // Mini player
-  setElText('miniTitle', song.title);
-  setElText('miniArtist', song.artist);
+  // Mini player — texto
+  setElText('miniTitle', song.title || song.name || 'Sin título');
+  setElText('miniArtist', song.artist || '—');
+  // Mini cover: placeholder hasta que loadAndApplyCover lo rellene
   const mc = document.getElementById('miniCover');
-  if (mc) mc.innerHTML = song.coverUrl
-    ? `<img src="${song.coverUrl}" style="width:100%;height:100%;object-fit:cover;">`
-    : `<div class="mini-cover-placeholder">🎵</div>`;
+  if (mc) mc.innerHTML = `<div class="mini-cover-placeholder">🎵</div>`;
 
-  // Full player
-  setElText('fpTitle', song.title);
+  // Full player — texto
+  setElText('fpTitle', song.title || song.name || 'Sin título');
   setElText('fpArtist', song.artist || '—');
-  const fpImg = document.getElementById('fpCoverImg');
-  const fpPh  = document.getElementById('fpCoverPlaceholder');
-  if (song.coverUrl && fpImg) {
-    fpImg.src = song.coverUrl; fpImg.style.display = 'block';
-    if (fpPh) fpPh.style.display = 'none';
-  } else {
-    if (fpImg) fpImg.style.display = 'none';
-    if (fpPh) fpPh.style.display = 'flex';
-  }
+  // Covers se rellenan por loadAndApplyCover() asíncronamente
 
   // Now playing card
-  setElText('npTitle', song.title);
-  setElText('npArtist', song.artist);
+  setElText('npTitle', song.title || song.name || 'Sin título');
+  setElText('npArtist', song.artist || '—');
   const nc = document.getElementById('npCover');
-  if (nc) nc.innerHTML = song.coverUrl
-    ? `<img src="${song.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`
-    : '🎵';
+  if (nc) nc.innerHTML = '🎵';
+
+  // Like button
+  updateLikeBtn(song.id);
+}
+
+function updateLikeBtn(songId) {
+  const btn = document.getElementById('fpLikeBtn');
+  if (!btn) return;
+  const liked = favorites.includes(songId);
+  btn.classList.toggle('liked', liked);
+  btn.textContent = liked ? '♥' : '♡';
 }
 
 function setElText(id, text) {
@@ -3895,6 +3983,18 @@ async function playSongFromList(index) {
   const app = window.SonattaApp;
   if (!app) return;
 
+  // Abrir fullPlayer inmediatamente con info básica (sin esperar carga)
+  openFullPlayer();
+  setElText('fpTitle', song.title || song.name || 'Sin título');
+  setElText('fpArtist', song.artist || (song.source === 'gdrive' ? 'Google Drive' : 'Local'));
+  // Reset carátula mientras carga
+  const fpImg = document.getElementById('fpCoverImg');
+  const fpPh  = document.getElementById('fpCoverPlaceholder');
+  if (fpImg) { fpImg.src = ''; fpImg.style.display = 'none'; }
+  if (fpPh)  { fpPh.style.display = 'flex'; fpPh.textContent = '⏳'; }
+  // Actualizar estado del like
+  updateLikeBtn(song.id);
+
   // Si es de Drive, necesita token
   if (song.source === 'gdrive') {
     if (!gdriveToken) { showToast('Reconecta Google Drive', 'error'); return; }
@@ -3919,14 +4019,14 @@ async function playSongFromList(index) {
   app.audio.play().then(() => {
     app.isPlaying = true;
     updatePlayerUI(song);
-    loadAndApplyCover(song);   // ← carátula solo al reproducir
+    loadAndApplyCover(song);   // ← carga carátula solo al reproducir
     updatePlayButtons(true);
     updateSongsPlayer(song);
     renderSongsScreen();
     document.getElementById('songsPlayer').style.display = 'block';
     const mp = document.getElementById('miniPlayer');
     if (mp) mp.classList.add('visible');
-  }).catch(e => showToast('Error al reproducir', 'error'));
+  }).catch(e => { showToast('Error al reproducir', 'error'); closeFullPlayer(); });
 }
 
 // ── Actualizar reproductor en pantalla canciones ─────────────────────
@@ -4239,15 +4339,25 @@ async function loadAndApplyCover(song) {
 
   const songId = song.id;
   const applyAll = (src) => {
-    // Full player
-    const fpCover = document.getElementById('fullPlayerCover');
-    if (fpCover) fpCover.innerHTML = src
-      ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">`
-      : '🎵';
-    // Mini player
-    const mpCover = document.getElementById('miniCoverImg');
-    if (mpCover) { mpCover.src = src || ''; mpCover.style.display = src ? 'block' : 'none'; }
-    // Songs player (barra inferior en pantalla Canciones)
+    // Full player carátula
+    const fpImg = document.getElementById('fpCoverImg');
+    const fpPh  = document.getElementById('fpCoverPlaceholder');
+    if (src) {
+      if (fpImg) { fpImg.src = src; fpImg.style.display = 'block'; }
+      if (fpPh)  fpPh.style.display = 'none';
+      // Fondo dinámico difuminado detrás de la carátula
+      const fpBg = document.getElementById('fpBg');
+      if (fpBg) fpBg.style.backgroundImage = `url('${src}')`;
+    } else {
+      if (fpImg) fpImg.style.display = 'none';
+      if (fpPh)  { fpPh.style.display = 'flex'; fpPh.textContent = '🎵'; }
+    }
+    // Mini player cover
+    const mc = document.getElementById('miniCover');
+    if (mc) mc.innerHTML = src
+      ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;">`
+      : `<div class="mini-cover-placeholder">🎵</div>`;
+    // Songs player cover (barra inferior)
     const spCover = document.getElementById('spCover');
     if (spCover) spCover.innerHTML = src
       ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`
@@ -4255,7 +4365,7 @@ async function loadAndApplyCover(song) {
     // Now playing card en home
     const npCover = document.getElementById('npCover');
     if (npCover) npCover.innerHTML = src
-      ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`
+      ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">`
       : '🎵';
   };
 
