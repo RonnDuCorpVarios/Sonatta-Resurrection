@@ -3849,20 +3849,13 @@ function renderSongsScreen() {
     container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:3rem">🎵</div><div style="margin-top:12px">Sin canciones</div><div style="font-size:0.8rem;margin-top:6px">Conecta una nube o agrega música local</div></div>';
     return;
   }
-  // Helper: genera HTML de carátula con todos los data-* que loadCover necesita
+  // En la lista solo se muestra un placeholder estilizado.
+  // La carátula real se carga únicamente al reproducir (loadAndApplyCover).
   function coverHtml(s) {
-    const base = `data-song-id="${s.id}" data-source="${s.source || 'local'}"
-      class="lazy-cover"
-      style="width:100%;height:100%;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s"`;
-    if (s.source === 'gdrive') {
-      // Drive: la carátula se extrae del ID3 tag via range fetch
-      return `<img ${base} data-drive-id="${s.driveId}" data-slot="${s.driveSlot || 0}" alt="">`;
-    }
-    // Local: coverUrl ya es un data URL listo para usar
-    if (s.coverUrl) {
-      return `<img ${base} data-cover="${s.coverUrl}" alt="">`;
-    }
-    return '<span style="font-size:1.4rem">🎵</span>';
+    const color = s.source === 'gdrive' ? 'rgba(66,133,244,0.25)' : 'rgba(124,92,252,0.25)';
+    const icon  = s.source === 'gdrive' ? '🔵' : '🎵';
+    return `<div style="width:100%;height:100%;border-radius:10px;background:${color};
+      display:flex;align-items:center;justify-content:center;font-size:1.2rem">${icon}</div>`;
   }
 
   if (songsView === 'grid') {
@@ -3891,8 +3884,6 @@ function renderSongsScreen() {
         <button class="song-row-menu" onclick="openSongMenu(event,${i})">⋮</button></div>`;
     }).join('');
   }
-  // Iniciar lazy loading de carátulas
-  setTimeout(initLazyCovers, 50);
 }
 
 // ── Reproducir desde lista ───────────────────────────────────────────
@@ -3928,6 +3919,7 @@ async function playSongFromList(index) {
   app.audio.play().then(() => {
     app.isPlaying = true;
     updatePlayerUI(song);
+    loadAndApplyCover(song);   // ← carátula solo al reproducir
     updatePlayButtons(true);
     updateSongsPlayer(song);
     renderSongsScreen();
@@ -4219,94 +4211,84 @@ function updateGdriveCard(connected, email, songCount) { updateDriveCard(0, conn
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// CARÁTULAS — sistema definitivo
+// CARÁTULAS — estrategia PLAYER-ONLY (cero consumo en lista)
 //
-// Para canciones de Google Drive:
-//   - thumbnailLink de la API no existe para MP3 (Drive no genera
-//     thumbnails de audio). La carátula está embebida en el ID3 tag.
-//   - Se descarga SOLO el header del MP3 con Range: bytes=0-262143
-//     (256 KB máx), que siempre contiene el ID3v2 tag con la imagen.
-//   - jsmediatags lee ese ArrayBuffer y extrae la portada.
-//   - Si no hay portada en el ID3, se muestra el emoji 🎵.
-//   - Las carátulas extraídas se cachean en memoria (coverCache) para
-//     no repetir la descarga al hacer scroll o al renderizar de nuevo.
+// Problema previo: cargar carátulas en la lista = miles de fetches.
+// Con 1000 canciones visibles → 256 MB de datos solo para mostrar
+// thumbnails que el usuario ni ve completamente.
 //
-// Para canciones locales:
-//   - La carátula ya viene como data URL desde handleFileImport.
-//   - Se asigna directamente al src sin ninguna descarga.
+// Solución definitiva (igual que Spotify/YT Music):
+//   - La LISTA muestra siempre un placeholder 🎵 estilizado. Sin fetches.
+//   - La carátula SOLO se carga cuando el usuario reproduce una canción.
+//   - Se cachea en memoria: la segunda vez que suena → sin fetch.
+//   - Consumo real: 1 fetch de 256 KB por canción reproducida (no vista).
+//     Con uso normal (50 canciones/día) = ~12 MB/día. Insignificante.
 //
-// CONSUMO: ~256 KB por canción visible (solo una vez, luego caché).
-//          No se usa Firebase Storage. No se sube nada.
+// ⚠️  NUNCA se cargan carátulas por scroll o visibilidad.
+//     NUNCA se usa Firebase Storage.
+//     Solo 1 fetch por reproducción, cacheado para siempre en la sesión.
 // ═══════════════════════════════════════════════════════════════════
 
-const coverCache = {};   // songId → dataURL | 'none'
-let lazyObserver  = null;
+const coverCache = {};  // songId → dataURL | 'none'
 
-function initLazyCovers() {
-  if (lazyObserver) lazyObserver.disconnect();
+// Carga la carátula de una canción y la aplica a todos los elementos
+// que la muestran (reproductor full, mini player, songs player).
+// Solo se llama al reproducir — nunca al renderizar la lista.
+async function loadAndApplyCover(song) {
+  if (!song) return;
 
-  // root = #songsList porque el scroll ocurre ahí (position:fixed screen)
-  const scrollRoot = document.getElementById('songsList') || null;
+  const songId = song.id;
+  const applyAll = (src) => {
+    // Full player
+    const fpCover = document.getElementById('fullPlayerCover');
+    if (fpCover) fpCover.innerHTML = src
+      ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:18px">`
+      : '🎵';
+    // Mini player
+    const mpCover = document.getElementById('miniCoverImg');
+    if (mpCover) { mpCover.src = src || ''; mpCover.style.display = src ? 'block' : 'none'; }
+    // Songs player (barra inferior en pantalla Canciones)
+    const spCover = document.getElementById('spCover');
+    if (spCover) spCover.innerHTML = src
+      ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`
+      : '🎵';
+    // Now playing card en home
+    const npCover = document.getElementById('npCover');
+    if (npCover) npCover.innerHTML = src
+      ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`
+      : '🎵';
+  };
 
-  lazyObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      const img = entry.target;
-      lazyObserver.unobserve(img);
-      if (img.dataset.loaded === 'true') return;
-      loadCover(img);
-    });
-  }, { root: scrollRoot, rootMargin: '400px', threshold: 0 });
-
-  document.querySelectorAll('img.lazy-cover:not([data-loaded="true"])').forEach(img => {
-    lazyObserver.observe(img);
-  });
-}
-
-async function loadCover(img) {
-  const songId  = img.dataset.songId;
-  const source  = img.dataset.source;   // 'gdrive' | 'local'
-  const coverUrl = img.dataset.cover;   // data URL para local, null para drive
-
-  // ── Local: ya tiene coverUrl como data URL ──────────────────────
-  if (source !== 'gdrive') {
-    if (coverUrl) {
-      img.src = coverUrl;
-      img.onload = () => { img.style.opacity = '1'; img.dataset.loaded = 'true'; };
-      img.onerror = () => { img.style.display = 'none'; };
-    }
+  // ── Local: ya tiene coverUrl como data URL ───────────────────────
+  if (song.source !== 'gdrive') {
+    applyAll(song.coverUrl || null);
     return;
   }
 
-  // ── Drive: revisar caché primero ────────────────────────────────
-  if (coverCache[songId]) {
-    if (coverCache[songId] === 'none') { img.style.display = 'none'; return; }
-    img.src = coverCache[songId];
-    img.onload = () => { img.style.opacity = '1'; img.dataset.loaded = 'true'; };
+  // ── Drive: revisar caché ─────────────────────────────────────────
+  if (coverCache[songId] !== undefined) {
+    applyAll(coverCache[songId] === 'none' ? null : coverCache[songId]);
     return;
   }
 
-  const driveId  = img.dataset.driveId;
-  const slot     = parseInt(img.dataset.slot || '0');
-  const acc      = driveAccounts[slot];
-  if (!acc || !acc.token || !driveId) {
-    img.style.display = 'none';
-    coverCache[songId] = 'none';
-    return;
+  // ── Drive: fetch solo los primeros 256 KB (header ID3) ──────────
+  applyAll(null); // placeholder inmediato mientras carga
+  const slot = song.driveSlot || 0;
+  const acc  = driveAccounts[slot];
+  if (!acc || !acc.token || !song.driveId) {
+    coverCache[songId] = 'none'; return;
   }
 
   try {
-    // Descargar solo los primeros 256 KB del MP3 (contiene el ID3v2 tag)
     const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${driveId}?alt=media`,
+      `https://www.googleapis.com/drive/v3/files/${song.driveId}?alt=media`,
       { headers: { Authorization: 'Bearer ' + acc.token, Range: 'bytes=0-262143' } }
     );
-    if (!res.ok) throw new Error('fetch ' + res.status);
+    if (!res.ok) throw new Error(res.status);
     const buf = await res.arrayBuffer();
 
-    // Extraer carátula del ID3 tag con jsmediatags
     await new Promise((resolve) => {
-      if (!window.jsmediatags) { resolve(); return; }
+      if (!window.jsmediatags) { coverCache[songId] = 'none'; resolve(); return; }
       jsmediatags.read(new Blob([buf], { type: 'audio/mpeg' }), {
         onSuccess(tag) {
           const pic = tag.tags.picture;
@@ -4314,32 +4296,25 @@ async function loadCover(img) {
             const b64 = pic.data.reduce((s, b) => s + String.fromCharCode(b), '');
             const dataUrl = `data:${pic.format};base64,${btoa(b64)}`;
             coverCache[songId] = dataUrl;
-            if (img.isConnected) {
-              img.src = dataUrl;
-              img.onload = () => { img.style.opacity = '1'; img.dataset.loaded = 'true'; };
-            }
+            applyAll(dataUrl);
           } else {
             coverCache[songId] = 'none';
-            if (img.isConnected) img.style.display = 'none';
           }
           resolve();
         },
-        onError() {
-          coverCache[songId] = 'none';
-          if (img.isConnected) img.style.display = 'none';
-          resolve();
-        }
+        onError() { coverCache[songId] = 'none'; resolve(); }
       });
     });
   } catch(e) {
     coverCache[songId] = 'none';
-    if (img.isConnected) img.style.display = 'none';
   }
 }
 
 // Stubs de compatibilidad con código antiguo
+function initLazyCovers() {}
 function loadAuthCover() {}
 function loadCoverForImg() {}
+function loadCover() {}
 </script>
 
 
@@ -4524,9 +4499,6 @@ function renderFolderContent({ folders, songs }) {
   }).join('');
 
   content.innerHTML = foldersHtml + songsHtml;
-
-  // Lazy loading de carátulas
-  setTimeout(initLazyCovers, 50);
 }
 
 // ── Reproducir canción desde el explorador ────────────────────
