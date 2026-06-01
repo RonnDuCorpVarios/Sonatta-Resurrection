@@ -86,29 +86,33 @@
     }
   };
 
-  onAuthStateChanged(auth, (user) => {
-    window.SonattaApp.currentUser = user;
-    if (user) {
-      showScreen('homeScreen');
-      // Esperar a que el DOM y SonattaUI estén listos
-      const tryLogin = () => {
-        if (window.SonattaUI && window.SonattaUI.onUserLogin) {
-          window.SonattaUI.onUserLogin(user);
-        } else {
-          setTimeout(tryLogin, 100);
-        }
-      };
-      tryLogin();
-    } else {
-      showScreen('welcomeScreen');
-    }
-  });
+  // Esperar a que el DOM esté completamente listo antes de registrar el observer
+  // y de despachar eventos que dependen de elementos del HTML
+  document.addEventListener('DOMContentLoaded', () => {
+    onAuthStateChanged(auth, (user) => {
+      window.SonattaApp.currentUser = user;
+      if (user) {
+        showScreen('homeScreen');
+        // Esperar a que SonattaUI esté listo
+        const tryLogin = () => {
+          if (window.SonattaUI && window.SonattaUI.onUserLogin) {
+            window.SonattaUI.onUserLogin(user);
+          } else {
+            setTimeout(tryLogin, 100);
+          }
+        };
+        tryLogin();
+      } else {
+        showScreen('welcomeScreen');
+      }
+    });
 
-  window.firebaseReady = true;
-  document.dispatchEvent(new Event('firebaseReady'));
-  // Marcar nav inicial
-  const initNav = document.getElementById('gnav-home');
-  if (initNav) initNav.classList.add('active');
+    window.firebaseReady = true;
+    document.dispatchEvent(new Event('firebaseReady'));
+    // Marcar nav inicial
+    const initNav = document.getElementById('gnav-home');
+    if (initNav) initNav.classList.add('active');
+  });
 </script>
 
 <style>
@@ -155,6 +159,16 @@
   --shadow-md:  0 8px 24px rgba(0,0,0,0.5);
   --shadow-lg:  0 20px 60px rgba(0,0,0,0.7);
   --shadow-accent: 0 8px 32px rgba(108,71,255,0.4);
+
+  /* Superficies (usadas en new_global) */
+  --surface:  rgba(255,255,255,0.04);
+  --surface2: rgba(255,255,255,0.07);
+
+  /* Radios de borde */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -165,7 +179,7 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-/* body ya definido en new_global */
+body {
   touch-action: manipulation;
 }
 
@@ -1963,80 +1977,10 @@ html, body {
 }
 
 /* ─── ESCRITORIO (>=640px) ────────────────── */
-@media (min-width: 640px) {
-  /* Fondo con texto SONATTA centrado */
-  body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #04040a;
-    overflow: hidden;
-  }
 
-  /* Texto decorativo de fondo — tamaño fijo no relativo al viewport */
-  body::before {
-    content: 'SONATTA';
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: 'Syne', sans-serif;
-    font-size: 180px;
-    font-weight: 900;
-    color: rgba(108,71,255,0.04);
-    letter-spacing: -0.03em;
-    pointer-events: none;
-    white-space: nowrap;
-    z-index: 0;
-  }
-
-  /* Contenedor phone-frame */
-  #root-wrapper {
-    position: relative;
-    width: 430px;
-    height: 100vh;
-    overflow: hidden;
-    z-index: 1;
-    flex-shrink: 0;
-    box-shadow:
-      0 0 0 1px rgba(255,255,255,0.06),
-      0 40px 100px rgba(0,0,0,0.8),
-      0 0 80px rgba(108,71,255,0.06);
-  }
-
-  /* Screens: absolute dentro del wrapper */
-  .screen {
-    position: absolute !important;
-    width: 430px !important;
-    left: 0 !important;
-  }
-
-  /* Nav: absolute dentro del wrapper */
-  #globalNav {
-    position: absolute !important;
-    left: 0 !important; right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-  }
-
-  /* Modales que deben estar dentro del wrapper */
-  #toastContainer {
-    position: absolute !important;
-    top: 16px !important;
-    bottom: auto !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    width: 380px !important;
-  }
-}
 
 /* ─── MÓVIL (<640px) ──────────────────────── */
-@media (max-width: 639px) {
-  #root-wrapper {
-    display: contents; /* en móvil el wrapper es transparente */
-  }
-  .screen { width: 100% !important; }
-  #globalNav { width: 100% !important; }
-}
+
 
 
 /* ── NAV MÓVIL: 6 items compactos ─────────────── */
@@ -2075,6 +2019,97 @@ html, body {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE SIMPLE Y FUNCIONAL
+══════════════════════════════════════════════ */
+
+/* Base: móvil primero */
+html, body {
+  height: 100%; width: 100%;
+  margin: 0; padding: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* root-wrapper: siempre transparente en móvil */
+/* Screens: siempre fixed */
+.screen {
+  position: fixed !important;
+  top: 0; left: 0; right: 0;
+  bottom: 64px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+#welcomeScreen, #loginScreen, #registerScreen {
+  bottom: 0 !important;
+}
+
+/* Nav: siempre fixed abajo */
+#globalNav {
+  position: fixed !important;
+  bottom: 0; left: 0; right: 0;
+  z-index: 500;
+}
+
+/* ── ESCRITORIO ≥640px ── */
+@media (min-width: 640px) {
+
+  /* Fondo oscuro con SONATTA */
+  body {
+    background: #04040a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  body::before {
+    content: 'SONATTA';
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Syne', sans-serif;
+    font-size: 180px;
+    font-weight: 900;
+    color: rgba(108,71,255,0.04);
+    letter-spacing: -0.03em;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 0;
+  }
+
+  /* Centrar screens y nav en 430px */
+  .screen {
+    left: 50% !important;
+    right: auto !important;
+    width: 430px !important;
+    transform: translateX(-50%) !important;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+  }
+
+  #globalNav {
+    left: 50% !important;
+    right: auto !important;
+    width: 430px !important;
+    transform: translateX(-50%) !important;
+  }
+
+  /* Toast centrado */
+  #toastContainer {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
+/* ── NAV MÓVIL: 6 items compactos ── */
+@media (max-width: 639px) {
+  .nav-item { padding: 4px 2px !important; }
+  .nav-item svg { width: 20px !important; height: 20px !important; }
+  .nav-label { font-size: 9px !important; letter-spacing: 0 !important; }
 }
 
 </style>
@@ -2182,6 +2217,7 @@ html, body {
       <div class="ws-eq">
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
+    </div><!-- /ws-logo-wrap -->
     <h1 class="ws-title" style="font-size:2rem;margin-top:8px;margin-bottom:2px">Sonatta</h1>
     <p style="color:var(--text3);font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px">Bienvenido de vuelta</p>
   </div>
@@ -2190,7 +2226,6 @@ html, body {
     <div class="auth-error" id="loginError"></div>
 
     <div class="auth-field">
-      <label class="auth-label">Correo electrónico</label>
       <input type="email" class="auth-input" id="loginEmail" placeholder="tu@correo.com">
     </div>
     <div class="auth-field">
@@ -2235,6 +2270,7 @@ html, body {
       <div class="ws-eq">
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
+    </div><!-- /ws-logo-wrap -->
     <h1 class="ws-title" style="font-size:2rem;margin-top:8px;margin-bottom:2px">Sonatta</h1>
     <p style="color:var(--text3);font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px">Crea tu cuenta gratis</p>
   </div>
