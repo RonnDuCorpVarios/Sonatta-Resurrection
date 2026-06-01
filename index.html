@@ -2419,14 +2419,26 @@ html, body {
 <div id="songsScreen" class="screen">
   <!-- Toolbar -->
   <div class="songs-toolbar">
-    <div class="songs-source-filter" id="sourceFilter">
-      <div class="source-chip active" onclick="filterSource('all',this)">Todas</div>
-      <div class="source-chip" onclick="filterSource('local',this)">📱 Local</div>
-      <div class="source-chip" onclick="filterSource('gdrive',this)">🔵 Drive</div>
-      <div class="source-chip" onclick="filterSource('favs',this)">♥ Favoritos</div>
+    <!-- Barra de búsqueda -->
+    <div style="position:relative;width:100%;margin-bottom:8px;">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:0.9rem;opacity:0.4;pointer-events:none;">🔍</span>
+      <input id="songsSearchInput" type="text" placeholder="Buscar canciones, artistas..."
+        oninput="filterSongsQuery(this.value)"
+        style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px 10px 38px;color:var(--text);font-size:0.85rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.2s,background 0.2s;"
+        onfocus="this.style.borderColor='rgba(124,92,252,0.45)';this.style.background='rgba(255,255,255,0.08)'"
+        onblur="this.style.borderColor='rgba(255,255,255,0.09)';this.style.background='rgba(255,255,255,0.05)'">
     </div>
-    <button class="view-toggle-btn active" id="btnList" onclick="setSongsView('list')" title="Lista">☰</button>
-    <button class="view-toggle-btn" id="btnGrid" onclick="setSongsView('grid')" title="Cuadrícula">⊞</button>
+    <!-- Chips de filtro + botones de vista -->
+    <div style="display:flex;align-items:center;gap:6px;width:100%;">
+      <div class="songs-source-filter" id="sourceFilter" style="flex:1;">
+        <div class="source-chip active" onclick="filterSource('all',this)">Todas</div>
+        <div class="source-chip" onclick="filterSource('local',this)">📱 Local</div>
+        <div class="source-chip" onclick="filterSource('gdrive',this)">🔵 Drive</div>
+        <div class="source-chip" onclick="filterSource('favs',this)">♥ Favoritos</div>
+      </div>
+      <button class="view-toggle-btn active" id="btnList" onclick="setSongsView('list')" title="Lista">☰</button>
+      <button class="view-toggle-btn" id="btnGrid" onclick="setSongsView('grid')" title="Cuadrícula">⊞</button>
+    </div>
   </div>
 
   <!-- Lista / Grid -->
@@ -3779,6 +3791,13 @@ let sourceFilter = 'all';
 let ctxSong = null;
 let favorites = JSON.parse(localStorage.getItem('sonatta_favs') || '[]');
 let allDriveSongs = [];
+let songsSearchQuery = '';
+
+// ── Búsqueda de canciones ────────────────────────────────────────────
+function filterSongsQuery(q) {
+  songsSearchQuery = q.toLowerCase().trim();
+  renderSongsScreen();
+}
 
 // ── Cambiar vista lista/grid ─────────────────────────────────────────
 function setSongsView(v) {
@@ -3801,10 +3820,20 @@ function getFilteredSongs() {
   const local = (window.SonattaApp && window.SonattaApp.songs || []).filter(s => s.source !== 'gdrive');
   const drive = allDriveSongs;
   const all = [...local, ...drive];
-  if (sourceFilter === 'local') return local;
-  if (sourceFilter === 'gdrive') return drive;
-  if (sourceFilter === 'favs') return all.filter(s => favorites.includes(s.id));
-  return all;
+  let result;
+  if (sourceFilter === 'local') result = local;
+  else if (sourceFilter === 'gdrive') result = drive;
+  else if (sourceFilter === 'favs') result = all.filter(s => favorites.includes(s.id));
+  else result = all;
+  // Aplicar búsqueda por texto
+  if (songsSearchQuery) {
+    result = result.filter(s => {
+      const title  = (s.title  || s.name || '').toLowerCase();
+      const artist = (s.artist || '').toLowerCase();
+      return title.includes(songsSearchQuery) || artist.includes(songsSearchQuery);
+    });
+  }
+  return result;
 }
 
 // ── Renderizar pantalla canciones ────────────────────────────────────
@@ -4206,8 +4235,11 @@ let lazyObserver = null;
 function initLazyCovers() {
   if (lazyObserver) lazyObserver.disconnect();
 
-  // Usar el scroll container correcto como root para que
-  // IntersectionObserver funcione dentro de position:fixed screens
+  // El scroll ocurre dentro de #songsList (overflow-y:auto dentro de position:fixed)
+  // Sin especificar root, el IntersectionObserver usa el viewport y NUNCA detecta
+  // las imágenes como visibles. Se debe pasar el contenedor de scroll como root.
+  const scrollRoot = document.getElementById('songsList') || null;
+
   lazyObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (!entry.isIntersecting) return;
@@ -4218,21 +4250,25 @@ function initLazyCovers() {
       const coverUrl = img.dataset.cover;
       if (!coverUrl) return;
 
-      // Asignar src directamente — el browser gestiona la petición HTTP
-      // de imagen de forma nativa, sin JS fetch, sin blob, sin RAM extra
       img.onerror = () => {
-        img.style.display = 'none'; // falla silenciosa → se ve el fondo 🎵
+        // Si falla con =s400, intentar con la URL original sin modificar
+        if (img.src !== coverUrl) {
+          img.onerror = () => { img.style.display = 'none'; };
+          img.src = coverUrl;
+        } else {
+          img.style.display = 'none';
+        }
       };
       img.onload = () => {
         img.style.opacity = '1';
         img.dataset.loaded = 'true';
       };
-      img.src = coverUrl;
+      // Drive usa =s400 para tamaño mayor; el original puede ser =s220
+      img.src = coverUrl.includes('=s220') ? coverUrl.replace('=s220', '=s400') : coverUrl;
     });
   }, {
-    // Sin root → usa el viewport. Funciona aunque el scroll sea interno
-    // porque las imágenes están en position:fixed screens
-    rootMargin: '200px',
+    root: scrollRoot,      // ← contenedor de scroll real, no el viewport
+    rootMargin: '300px',   // pre-cargar antes de que entren en pantalla
     threshold: 0
   });
 
