@@ -3158,28 +3158,35 @@ function togglePlay() {
 
 function prevSong() {
   const app = window.SonattaApp;
-  const songs = displayedSongs.length ? displayedSongs : localSongs;
+  // Usar siempre la lista activa de songsScreen (incluye Drive + local)
+  const songs = getFilteredSongs();
   if (!songs.length) return;
-  let idx = app.currentIndex - 1;
+  // Buscar índice actual en la lista activa
+  let cur = songs.findIndex(s => s.id === app.currentSong?.id);
+  if (cur === -1) cur = 0;
+  let idx = cur - 1;
   if (idx < 0) idx = songs.length - 1;
-  playSong(idx);
+  playSongFromList(idx);
 }
 
 function nextSong() {
   const app = window.SonattaApp;
-  const songs = displayedSongs.length ? displayedSongs : localSongs;
+  const songs = getFilteredSongs();
   if (!songs.length) return;
+  let cur = songs.findIndex(s => s.id === app.currentSong?.id);
+  if (cur === -1) cur = -1;
   let idx;
   if (app.shuffle) {
-    idx = Math.floor(Math.random() * songs.length);
+    // Aleatorio: evitar repetir la misma
+    do { idx = Math.floor(Math.random() * songs.length); } while (songs.length > 1 && idx === cur);
   } else {
-    idx = app.currentIndex + 1;
+    idx = cur + 1;
     if (idx >= songs.length) {
       if (app.repeat === 'all') idx = 0;
       else { app.audio.pause(); app.isPlaying = false; updatePlayButtons(false); return; }
     }
   }
-  playSong(idx);
+  playSongFromList(idx);
 }
 
 function toggleShuffle() {
