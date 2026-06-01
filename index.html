@@ -3816,15 +3816,23 @@ function renderSongsScreen() {
     container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:3rem">🎵</div><div style="margin-top:12px">Sin canciones</div><div style="font-size:0.8rem;margin-top:6px">Conecta una nube o agrega música local</div></div>';
     return;
   }
+  // Helper: genera el HTML de la carátula para cualquier canción.
+  // Si hay coverUrl, usa lazy loading con data-cover (sin fetch, sin blob).
+  // El browser carga la imagen directamente desde la URL de Drive.
+  function coverHtml(s, extraStyle = '') {
+    if (s.coverUrl) {
+      return `<img data-cover="${s.coverUrl}" alt="" class="lazy-cover"
+                style="width:100%;height:100%;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s;${extraStyle}">`;
+    }
+    return '<span style="font-size:1.4rem">🎵</span>';
+  }
+
   if (songsView === 'grid') {
     container.className = 'songs-grid-view';
     container.innerHTML = songs.map((s, i) => {
-      const cover = s.source === 'gdrive'
-      ? `<img data-src="lazy" data-drive-id="${s.driveId}" data-slot="${s.driveSlot||0}" alt="" class="lazy-cover" style="width:100%;height:100%;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">`
-      : s.coverUrl ? `<img src="${s.coverUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:10px">` : '<span style="font-size:1.4rem">🎵</span>';
       const src = s.source === 'gdrive' ? '🔵' : '📱';
       return `<div class="song-grid-card ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
-        <div class="song-grid-cover">${cover}<div class="play-overlay">▶</div></div>
+        <div class="song-grid-cover">${coverHtml(s)}<div class="play-overlay">▶</div></div>
         <div class="song-grid-info">
           <div class="song-grid-title">${escHtml(s.title||s.name||'Sin título')}</div>
           <div class="song-grid-meta">${src} ${escHtml(s.artist||'')}</div>
@@ -3834,13 +3842,10 @@ function renderSongsScreen() {
   } else {
     container.className = 'songs-list-view';
     container.innerHTML = songs.map((s, i) => {
-      const cover = s.source === 'gdrive'
-      ? `<img data-src="lazy" data-drive-id="${s.driveId}" data-slot="${s.driveSlot||0}" alt="" class="lazy-cover" style="width:100%;height:100%;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">`
-      : s.coverUrl ? `<img src="${s.coverUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:10px">` : '<span style="font-size:1.4rem">🎵</span>';
       const src = s.source === 'gdrive' ? '🔵 Drive' : '📱 Local';
       const isFav = favorites.includes(s.id);
       return `<div class="song-row ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
-        <div class="song-row-cover">${cover}</div>
+        <div class="song-row-cover">${coverHtml(s)}</div>
         <div class="song-row-info">
           <div class="song-row-title">${escHtml(s.title||s.name||'Sin título')}</div>
           <div class="song-row-meta">${escHtml(s.artist||'')} · ${src}${isFav?' · ♥':''}</div>
@@ -4175,107 +4180,70 @@ function updateGdriveCard(connected, email, songCount) { updateDriveCard(0, conn
 
 
 <script>
-// ── Cargar carátula autenticada si la URL normal falla ─────────────────────
-async function loadAuthCover(imgEl, driveId, slot) {
-  if (!driveId) return;
-  const acc = driveAccounts[slot];
-  if (!acc || !acc.token) return;
-  try {
-    // Obtener thumbnail autenticado
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${driveId}?fields=thumbnailLink`,
-      { headers: { Authorization: 'Bearer ' + acc.token } }
-    );
-    const data = await res.json();
-    if (data.thumbnailLink) {
-      // Descargar la imagen con el token y convertir a blob URL
-      const imgRes = await fetch(data.thumbnailLink.replace('=s220','=s400'), {
-        headers: { Authorization: 'Bearer ' + acc.token }
-      });
-      if (imgRes.ok) {
-        const blob = await imgRes.blob();
-        imgEl.src = URL.createObjectURL(blob);
-      }
-    }
-  } catch(e) { /* mantener ícono por defecto */ }
-}
-</script>
-
-<script>
-// ═══════════════════════════════════════════
-// LAZY LOADING DE CARÁTULAS
-// Solo carga imágenes cuando son visibles en pantalla
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// CARÁTULAS — estrategia CERO CONSUMO
+//
+// Google Drive ya devuelve thumbnailLink en la respuesta inicial de
+// loadGoogleDriveFiles (campo fields=thumbnailLink). Esa URL tiene
+// autenticación embebida — el browser la carga directamente como
+// cualquier <img src="...">, sin fetch, sin blob, sin objectURL,
+// sin Firebase Storage, sin consumir cuota de ningún tipo.
+//
+// Flujo:
+//  1. loadGoogleDriveFiles guarda thumbnailLink en song.coverUrl
+//  2. renderSongsScreen pone coverUrl en data-cover del <img>
+//  3. initLazyCovers usa IntersectionObserver para asignar src
+//     solo cuando la imagen entra en pantalla (ahorra peticiones)
+//  4. Si la imagen falla (onerror) se muestra el placeholder 🎵
+//
+// ⚠️  NUNCA se descargan blobs de carátulas.
+//     NUNCA se hace fetch adicional por imagen.
+//     NUNCA se guarda nada en Firebase Storage.
+// ═══════════════════════════════════════════════════════════════════
 
 let lazyObserver = null;
 
 function initLazyCovers() {
   if (lazyObserver) lazyObserver.disconnect();
 
+  // Usar el scroll container correcto como root para que
+  // IntersectionObserver funcione dentro de position:fixed screens
   lazyObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (!entry.isIntersecting) return;
       const img = entry.target;
-      if (img.dataset.loaded === 'true') { lazyObserver.unobserve(img); return; }
       lazyObserver.unobserve(img);
-      loadCoverForImg(img);
-    });
-  }, { rootMargin: '150px', threshold: 0 });
+      if (img.dataset.loaded === 'true') return;
 
-  // Observar todas las imágenes lazy no cargadas
+      const coverUrl = img.dataset.cover;
+      if (!coverUrl) return;
+
+      // Asignar src directamente — el browser gestiona la petición HTTP
+      // de imagen de forma nativa, sin JS fetch, sin blob, sin RAM extra
+      img.onerror = () => {
+        img.style.display = 'none'; // falla silenciosa → se ve el fondo 🎵
+      };
+      img.onload = () => {
+        img.style.opacity = '1';
+        img.dataset.loaded = 'true';
+      };
+      img.src = coverUrl;
+    });
+  }, {
+    // Sin root → usa el viewport. Funciona aunque el scroll sea interno
+    // porque las imágenes están en position:fixed screens
+    rootMargin: '200px',
+    threshold: 0
+  });
+
   document.querySelectorAll('img.lazy-cover:not([data-loaded="true"])').forEach(img => {
     lazyObserver.observe(img);
   });
 }
 
-async function loadCoverForImg(img) {
-  const driveId = img.dataset.driveId;
-  const slot    = parseInt(img.dataset.slot || '0');
-  if (!driveId || img.dataset.loaded === 'true') return;
-
-  const acc = driveAccounts[slot];
-  if (!acc || !acc.token) return;
-
-  try {
-    // Paso 1: obtener thumbnailLink del archivo
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${driveId}?fields=thumbnailLink,hasThumbnail`,
-      { headers: { Authorization: 'Bearer ' + acc.token } }
-    );
-    if (!res.ok) return;
-    const data = await res.json();
-    if (!data.hasThumbnail || !data.thumbnailLink) return;
-
-    // Paso 2: thumbnailLink ya incluye el token de Google en la URL
-    // No necesita header Authorization — es una URL firmada
-    const imgUrl = data.thumbnailLink.replace('=s220', '=s400');
-
-    // Intentar cargar directamente (la URL ya tiene auth embebida)
-    const imgRes = await fetch(imgUrl);
-    if (!imgRes.ok) return;
-
-    const blob = await imgRes.blob();
-    if (!blob.type.startsWith('image/')) return;
-
-    const objectUrl = URL.createObjectURL(blob);
-
-    if (img.isConnected) {
-      img.src = objectUrl;
-      img.style.opacity = '1';
-      img.dataset.loaded = 'true';
-    } else {
-      URL.revokeObjectURL(objectUrl);
-    }
-
-  } catch(e) {
-    // silencioso
-  }
-}
-
-// Re-inicializar lazy observer cada vez que se renderiza la lista de canciones
-const _origRenderSongs = window.renderSongsScreen;
-// Hook: después de renderSongsScreen, inicializar lazy loading
-// Se llama desde renderSongsScreen al final
+// Stub de compatibilidad — ya no se usa pero puede ser llamada desde código legacy
+function loadAuthCover() {}
+function loadCoverForImg() {}
 </script>
 
 
@@ -4441,13 +4409,14 @@ function renderFolderContent({ folders, songs }) {
   const songsHtml = songs.map((f, i) => {
     const title = f.name.replace(/\.[^.]+$/, '');
     const ext = f.name.split('.').pop().toUpperCase();
+    // Usar thumbnailLink que ya viene en la respuesta de la API (sin fetch extra)
+    const coverPart = f.thumbnailLink
+      ? `<img data-cover="${f.thumbnailLink.replace('=s220','=s400')}" class="lazy-cover" alt=""
+           style="width:42px;height:42px;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">`
+      : `<span style="font-size:1.4rem">🎵</span>`;
     return `
     <div class="folder-item" onclick="playFolderSong('${f.id}','${escHtml(f.name)}',${folderCurrentSlot},${i})">
-      <div class="folder-icon song">
-        <img data-src="lazy" data-drive-id="${f.id}" data-slot="${folderCurrentSlot}"
-          class="lazy-cover" alt=""
-          style="width:42px;height:42px;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">
-      </div>
+      <div class="folder-icon song">${coverPart}</div>
       <div class="folder-info">
         <div class="folder-name">${escHtml(title)}</div>
         <div class="folder-meta">${ext} · Google Drive #${folderCurrentSlot+1}</div>
