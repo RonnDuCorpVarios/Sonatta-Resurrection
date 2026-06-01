@@ -628,7 +628,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 .fp-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 52px 20px 16px; position: relative; z-index: 1;
+  padding: 48px 20px 10px; position: relative; z-index: 1;
+  flex-shrink: 0;
 }
 .fp-close {
   width: 38px; height: 38px; border-radius: 12px;
@@ -643,7 +644,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 
 .fp-cover-wrap {
-  padding: 20px 40px; position: relative; z-index: 1;
+  padding: 10px 36px; position: relative; z-index: 1;
+  flex-shrink: 0;
 }
 .fp-cover {
   width: 100%; aspect-ratio: 1;
@@ -664,14 +666,15 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 
 .fp-info {
-  padding: 0 24px; position: relative; z-index: 1;
+  padding: 10px 24px 0; position: relative; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
 }
 .fp-song-name {
-  font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800;
-  line-height: 1.2;
+  font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800;
+  line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.fp-artist-name { font-size: 0.88rem; color: var(--text3); margin-top: 4px; }
+.fp-artist-name { font-size: 0.85rem; color: var(--text3); margin-top: 3px; }
 .fp-like-btn {
   width: 42px; height: 42px; border-radius: 50%;
   background: transparent; border: none;
@@ -684,7 +687,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 .fp-like-btn:active { transform: scale(1.2); }
 
 .fp-progress-wrap {
-  padding: 20px 24px 8px; position: relative; z-index: 1;
+  padding: 12px 24px 4px; position: relative; z-index: 1;
+  flex-shrink: 0;
 }
 .fp-progress-bar-wrap {
   height: 4px; background: var(--border); border-radius: 2px;
@@ -703,13 +707,14 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   pointer-events: none;
 }
 .fp-times {
-  display: flex; justify-content: space-between; margin-top: 8px;
+  display: flex; justify-content: space-between; margin-top: 6px;
   font-size: 0.72rem; color: var(--text3);
 }
 
 .fp-controls {
-  padding: 8px 24px; display: flex; align-items: center;
+  padding: 4px 24px 4px; display: flex; align-items: center;
   justify-content: space-between; position: relative; z-index: 1;
+  flex-shrink: 0;
 }
 .fp-ctrl-btn {
   width: 44px; height: 44px; border-radius: 50%;
@@ -738,10 +743,10 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 .fp-play-btn:active { transform: scale(0.95); }
 
 .fp-extras {
-  padding: 8px 24px 20px; display: flex; align-items: center;
-  justify-content: space-between; position: relative; z-index: 1;
+  padding: 4px 24px 16px; display: flex; flex-direction: column;
+  position: relative; z-index: 1; flex-shrink: 0;
 }
-.fp-vol-wrap { display: flex; align-items: center; gap: 10px; flex: 1; }
+.fp-vol-wrap { display: flex; align-items: center; gap: 10px; width: 100%; }
 .fp-vol-icon { font-size: 1rem; color: var(--text3); }
 .fp-vol-slider {
   flex: 1; -webkit-appearance: none; height: 4px;
@@ -1642,6 +1647,11 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 /* ── FULL PLAYER — immersive ─────────────────── */
 #fullPlayer {
   background: linear-gradient(180deg, #0a0810 0%, #080810 100%) !important;
+  /* Ocupa toda la pantalla EXCEPTO la barra de nav de 64px */
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
+  justify-content: flex-start !important;
 }
 .fp-bg {
   background-size: cover !important;
@@ -1651,13 +1661,30 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   transition: background-image 0.8s ease !important;
   z-index: 0 !important;
 }
-.fp-cover { border-radius: 28px !important; box-shadow: 0 32px 80px rgba(0,0,0,0.7) !important; }
-.fp-song-name { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; }
+/* Carátula: máximo 38% del alto de la pantalla para que todo quepa */
+.fp-cover-wrap {
+  padding: 8px 32px !important;
+}
+.fp-cover {
+  border-radius: 24px !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.7) !important;
+  width: 100% !important;
+  /* Usar min() para que no supere 38vh ni el ancho disponible */
+  max-height: 38vh !important;
+  aspect-ratio: 1 !important;
+  margin: 0 auto !important;
+}
+.fp-song-name {
+  font-family: 'Syne', sans-serif !important;
+  font-size: 1.2rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
 .fp-progress-bar-fill {
   background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%) !important;
 }
 .fp-play-btn {
-  width: 72px !important; height: 72px !important;
+  width: 68px !important; height: 68px !important;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%) !important;
   box-shadow: 0 12px 40px rgba(124,92,252,0.5) !important;
   font-size: 1.6rem !important;
