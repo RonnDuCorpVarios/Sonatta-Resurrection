@@ -1156,9 +1156,11 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 /* Menú contextual */
 .song-context-menu {
   position: fixed; background: var(--card); border: 1px solid var(--border);
-  border-radius: 14px; padding: 6px; min-width: 180px;
-  z-index: 999; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  border-radius: 14px; padding: 6px; min-width: 220px;
+  z-index: 700; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
   display: none;
+  bottom: 80px; left: 50%; transform: translateX(-50%);
+  width: calc(100% - 40px); max-width: 360px;
 }
 .song-context-menu.visible { display: block; }
 .ctx-item {
@@ -1647,11 +1649,27 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 /* ── FULL PLAYER — immersive ─────────────────── */
 #fullPlayer {
   background: linear-gradient(180deg, #0a0810 0%, #080810 100%) !important;
-  /* Ocupa toda la pantalla EXCEPTO la barra de nav de 64px */
   padding-bottom: env(safe-area-inset-bottom, 0px) !important;
   height: 100dvh !important;
   overflow: hidden !important;
   justify-content: flex-start !important;
+  z-index: 600 !important; /* Encima del nav (500) */
+}
+/* Fix título cortado: el contenedor necesita min-width:0 */
+#fullPlayer .fp-info { min-width: 0; }
+#fullPlayer .fp-info > div:first-child { min-width: 0; flex: 1; overflow: hidden; }
+#fullPlayer .fp-song-name {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+  max-width: 100% !important;
+}
+#fullPlayer .fp-artist-name {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
 }
 .fp-bg {
   background-size: cover !important;
@@ -3267,15 +3285,23 @@ function fpOpenMenu() {
   if (!song) return;
   ctxSong = song;
   const menu = document.getElementById('songContextMenu');
-  if (menu) {
-    const isFav = favorites.includes(song.id);
-    const favIcon = document.getElementById('ctxFavIcon');
-    const favText = document.getElementById('ctxFavText');
-    if (favIcon) favIcon.textContent = isFav ? '♥' : '♡';
-    if (favText) favText.textContent = isFav ? 'Quitar de favoritos' : 'Agregar a favoritos';
-    menu.style.cssText = 'display:block;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;width:calc(100% - 40px);max-width:360px';
-    document.addEventListener('click', () => { menu.style.display = 'none'; }, { once: true });
-  }
+  if (!menu) return;
+  // Actualizar estado like en el menú
+  const isFav = favorites.includes(song.id);
+  const favIcon = document.getElementById('ctxFavIcon');
+  const favText = document.getElementById('ctxFavText');
+  if (favIcon) favIcon.textContent = isFav ? '♥' : '♡';
+  if (favText) favText.textContent = isFav ? 'Quitar de favoritos' : 'Agregar a favoritos';
+  // Asegurar que el menú quede encima del fullPlayer (z-index:600)
+  menu.style.zIndex = '700';
+  menu.classList.add('visible');
+  // Cerrar al tocar fuera
+  setTimeout(() => {
+    document.addEventListener('click', function closeMenu() {
+      menu.classList.remove('visible');
+      document.removeEventListener('click', closeMenu);
+    }, { once: true });
+  }, 100);
 }
 
 // ═══════════════════════════════════════════
@@ -4052,11 +4078,14 @@ async function playSongFromList(index) {
   app.currentIndex = index;
   app.audio.play().then(() => {
     app.isPlaying = true;
-    updatePlayerUI(song);
-    loadAndApplyCover(song);   // ← carga carátula solo al reproducir
+    updatePlayerUI(song);          // actualiza npTitle, npArtist, miniPlayer
+    loadAndApplyCover(song);       // carga carátula solo al reproducir
     updatePlayButtons(true);
     updateSongsPlayer(song);
     renderSongsScreen();
+    // Mostrar now playing card en homeScreen
+    const nps = document.getElementById('nowPlayingSection');
+    if (nps) nps.style.display = 'block';
     document.getElementById('songsPlayer').style.display = 'block';
     const mp = document.getElementById('miniPlayer');
     if (mp) mp.classList.add('visible');
