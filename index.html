@@ -2376,52 +2376,72 @@ html, body {
   </div>
 </div>
 
-<!-- HOME + FULL PLAYER + SECONDARY SCREENS -->
+<!-- HOME SCREEN -->
 <div id="homeScreen" class="screen">
-  <div class="content-area" id="homeContent">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:52px 20px 16px;background:linear-gradient(180deg,var(--bg) 70%,transparent 100%);position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);">
-      <div>
-        <h2 id="homeGreeting" style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:-0.02em;color:var(--text)">Hola 👋</h2>
-        <p id="homeSubtitle" style="font-size:0.78rem;color:var(--text3);margin-top:3px">¿Qué quieres escuchar hoy?</p>
+  <div class="content-area" id="homeContent" style="padding-bottom:160px;">
+
+    <!-- Header -->
+    <div style="padding:52px 20px 12px;background:linear-gradient(180deg,var(--bg) 60%,transparent);position:sticky;top:0;z-index:50;backdrop-filter:blur(16px);">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <h2 id="homeGreeting" style="font-family:'Syne',sans-serif;font-size:1.45rem;font-weight:800;letter-spacing:-0.02em;">Hola 👋</h2>
+          <p id="homeSubtitle" style="font-size:0.78rem;color:var(--text3);margin-top:2px;">¿Qué quieres escuchar hoy?</p>
+        </div>
+        <div id="homeAvatar" onclick="switchView('settings')"
+          style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#38bdf8);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;overflow:hidden;border:2px solid rgba(255,255,255,0.1);box-shadow:0 4px 16px rgba(124,92,252,0.3);transition:transform 0.2s;flex-shrink:0;"
+          onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'"></div>
       </div>
-      <div id="homeAvatar" onclick="switchView('settings')" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#38bdf8);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;overflow:hidden;border:2px solid rgba(255,255,255,0.1);box-shadow:0 4px 16px rgba(124,92,252,0.3);transition:transform 0.2s" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'"></div>
-    </div>
-    <div style="padding:0 16px 14px;">
-      <div style="position:relative;">
-        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:0.95rem;opacity:0.35;">🔍</span>
-        <input id="searchInput" type="text" placeholder="Buscar canciones, artistas..." oninput="filterSongs(this.value)"
-          style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:13px 14px 13px 42px;color:var(--text);font-size:0.88rem;font-family:'DM Sans',sans-serif;outline:none;transition:all 0.2s;"
+
+      <!-- Buscador -->
+      <div style="position:relative;margin-top:14px;">
+        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:0.9rem;opacity:0.35;pointer-events:none;">🔍</span>
+        <input id="searchInput" type="text" placeholder="Buscar canciones, artistas..."
+          oninput="filterSongs(this.value)"
+          style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px 12px 42px;color:var(--text);font-size:0.85rem;font-family:'DM Sans',sans-serif;outline:none;transition:all 0.2s;box-sizing:border-box;"
           onfocus="this.style.borderColor='rgba(124,92,252,0.4)';this.style.background='rgba(255,255,255,0.06)'"
           onblur="this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.04)'">
       </div>
     </div>
-    <div style="padding:0 16px 20px;display:flex;gap:10px;">
-      <button onclick="importLocalFiles()" style="flex:1;padding:13px 16px;background:linear-gradient(135deg,rgba(124,92,252,0.25),rgba(56,189,248,0.12));border:1px solid rgba(124,92,252,0.35);border-radius:14px;color:var(--accent2);font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;backdrop-filter:blur(8px);"
-        onmouseover="this.style.background='linear-gradient(135deg,rgba(124,92,252,0.35),rgba(56,189,248,0.18))';this.style.transform='translateY(-1px)'"
-        onmouseout="this.style.background='linear-gradient(135deg,rgba(124,92,252,0.25),rgba(56,189,248,0.12))';this.style.transform='none'">
-        <span style="font-size:1rem">📁</span> Agregar música local
+
+    <!-- Acciones rápidas -->
+    <div style="padding:4px 16px 16px;display:flex;gap:10px;">
+      <button onclick="importLocalFiles()"
+        style="flex:1;padding:12px 14px;background:linear-gradient(135deg,rgba(124,92,252,0.2),rgba(56,189,248,0.1));border:1px solid rgba(124,92,252,0.3);border-radius:14px;color:var(--accent2);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;">
+        📁 Agregar música local
       </button>
-      <button onclick="switchView('clouds')" style="width:50px;height:50px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;color:var(--text2);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0"
-        onmouseover="this.style.background='rgba(255,255,255,0.08)';this.style.color='var(--text)'"
-        onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='var(--text2)'">☁️</button>
+      <button onclick="switchView('clouds')"
+        style="padding:12px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;color:var(--text2);font-size:1rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;">
+        ☁️ Nubes
+      </button>
     </div>
+
     <input type="file" id="fileInput" accept="audio/*" multiple style="display:none" onchange="handleFileImport(event)">
+
+    <!-- Sección "Mis canciones" -->
     <div style="padding:0 16px 8px;display:flex;align-items:center;justify-content:space-between;">
-      <div class="cfg-section-title" style="margin:0;">Mis canciones <span id="songCount" style="color:var(--text3);font-weight:400;"></span></div>
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);">
+        Mis canciones locales <span id="songCount" style="color:var(--text3);font-weight:400;"></span>
+      </div>
       <div style="display:flex;gap:6px;">
-        <button onclick="shuffleAll()" style="width:34px;height:34px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;color:var(--text2);font-size:0.95rem;cursor:pointer;">🔀</button>
-        <button onclick="sortSongs()" style="width:34px;height:34px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;color:var(--text2);font-size:0.95rem;cursor:pointer;">↕️</button>
+        <button onclick="shuffleAll()" title="Aleatorio"
+          style="width:32px;height:32px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;color:var(--text2);font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">🔀</button>
+        <button onclick="sortSongs()" title="Ordenar"
+          style="width:32px;height:32px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;color:var(--text2);font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">↕️</button>
       </div>
     </div>
-    <div id="songsList" style="padding:0 8px 8px;"></div>
+
+    <div id="songsList" style="padding:0 8px;"></div>
+
     <div id="songsEmpty" class="empty-state">
       <div class="empty-icon">🎵</div>
-      <div class="empty-title">Sin canciones aún</div>
-      <div class="empty-desc">Agrega música desde tu dispositivo o conecta una nube.</div>
-      <button class="empty-btn" onclick="importLocalFiles()">Agregar música</button>
+      <div class="empty-title">Sin canciones locales</div>
+      <div class="empty-desc">Agrega archivos de tu dispositivo o conecta Google Drive en Nubes.</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="empty-btn" onclick="importLocalFiles()">📁 Agregar archivos</button>
+        <button class="empty-btn" onclick="switchView('clouds')" style="background:rgba(66,133,244,0.15);border-color:rgba(66,133,244,0.3);color:#60a5fa;">☁️ Conectar Drive</button>
+      </div>
     </div>
-    <!-- Espaciador para que el contenido no quede debajo del miniPlayer -->
-    <div style="height:100px;flex-shrink:0;"></div>
+
   </div>
 </div>
 
@@ -2447,7 +2467,7 @@ html, body {
   <div class="fp-header">
     <button class="fp-close" onclick="closeFullPlayer()">↓</button>
     <span class="fp-title-top">Reproduciendo ahora</span>
-    <button onclick="fpOpenMenu()" style="width:38px;height:38px;background:none;border:none;color:var(--text2);font-size:1.3rem;cursor:pointer;border-radius:50%">⋮</button>
+    <button onclick="event.stopPropagation();fpOpenMenu()" style="width:38px;height:38px;background:none;border:none;color:var(--text2);font-size:1.3rem;cursor:pointer;border-radius:50%">⋮</button>
   </div>
 
   <!-- Carátula -->
@@ -3304,12 +3324,12 @@ function fpOpenMenu() {
   if (favText) favText.textContent = isFav ? 'Quitar de favoritos' : 'Agregar a favoritos';
   menu.style.zIndex = '800';
   menu.classList.add('visible');
-  // Cerrar al tocar fuera — delay para evitar que el mismo click lo cierre
-  setTimeout(() => {
-    const close = () => menu.classList.remove('visible');
-    document.addEventListener('click', close, { once: true });
-    document.addEventListener('touchstart', close, { once: true });
-  }, 150);
+  // Cerrar al siguiente click/touch (el botón ya hizo stopPropagation)
+  const close = (e) => {
+    if (!menu.contains(e.target)) menu.classList.remove('visible');
+  };
+  document.addEventListener('click', close, { once: true });
+  document.addEventListener('touchstart', close, { once: true });
 }
 
 // ═══════════════════════════════════════════
