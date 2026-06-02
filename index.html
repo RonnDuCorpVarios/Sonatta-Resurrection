@@ -181,6 +181,10 @@ html {
 
 body {
   touch-action: manipulation;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
@@ -1664,13 +1668,20 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   text-overflow: ellipsis !important;
   display: block !important;
   max-width: 100% !important;
+  color: #eeeeff !important;
 }
 #fullPlayer .fp-artist-name {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   display: block !important;
+  color: #9898b8 !important;
 }
+#fullPlayer .fp-title-top { color: #55556a !important; }
+#fullPlayer .fp-times span { color: #55556a !important; }
+/* Now playing card en homeScreen */
+#npTitle { color: #eeeeff !important; }
+#npArtist { color: #9898b8 !important; }
 .fp-bg {
   background-size: cover !important;
   background-position: center !important;
@@ -2390,18 +2401,6 @@ html, body {
         onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='var(--text2)'">☁️</button>
     </div>
     <input type="file" id="fileInput" accept="audio/*" multiple style="display:none" onchange="handleFileImport(event)">
-    <div id="nowPlayingSection" style="display:none;padding:0 16px 20px;">
-      <div class="cfg-section-title">Reproduciendo ahora</div>
-      <div id="nowPlayingCard" onclick="openFullPlayer()" style="background:linear-gradient(135deg,rgba(124,92,252,0.15),rgba(56,189,248,0.08));border:1px solid rgba(124,92,252,0.25);border-radius:18px;padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;">
-        <div id="npCover" style="width:60px;height:60px;border-radius:12px;background:var(--bg3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">🎵</div>
-        <div style="flex:1;min-width:0;">
-          <div id="npTitle" style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
-          <div id="npArtist" style="font-size:0.78rem;color:var(--text3);margin-top:3px;">—</div>
-          <div style="margin-top:10px;height:3px;background:var(--border);border-radius:2px;"><div id="npProgress" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width 0.3s linear;"></div></div>
-        </div>
-        <button id="npPlayBtn" onclick="event.stopPropagation();togglePlay()" style="width:44px;height:44px;border-radius:50%;background:var(--accent);border:none;color:white;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">▶</button>
-      </div>
-    </div>
     <div style="padding:0 16px 8px;display:flex;align-items:center;justify-content:space-between;">
       <div class="cfg-section-title" style="margin:0;">Mis canciones <span id="songCount" style="color:var(--text3);font-weight:400;"></span></div>
       <div style="display:flex;gap:6px;">
@@ -2477,9 +2476,10 @@ html, body {
   <!-- Extras: volumen + acciones -->
   <div class="fp-extras">
     <div class="fp-vol-wrap">
-      <span class="fp-vol-icon">🔈</span>
-      <input type="range" class="fp-vol-slider" id="fpVolume" min="0" max="100" value="100" oninput="setVolume(this.value)">
-      <span class="fp-vol-icon">🔊</span>
+      <button onclick="toggleMute()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:4px;" id="fpMuteBtn" title="Silenciar">🔈</button>
+      <input type="range" class="fp-vol-slider" id="fpVolume" min="0" max="100" value="100"
+        oninput="setVolume(this.value);updateVolIcon(this.value)">
+      <button onclick="setVolume(100);document.getElementById('fpVolume').value=100;updateVolIcon(100)" style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:4px;" title="Volumen máximo">🔊</button>
     </div>
     <!-- Botones de acción -->
     <div style="display:flex;gap:10px;margin-top:14px;">
@@ -3308,7 +3308,31 @@ function fpOpenMenu() {
 // VOLUMEN Y SEEK
 // ═══════════════════════════════════════════
 function setVolume(val) {
-  window.SonattaApp.audio.volume = val / 100;
+  const app = window.SonattaApp;
+  app.audio.volume = val / 100;
+  app.audio.muted = false;
+}
+
+function updateVolIcon(val) {
+  const btn = document.getElementById('fpMuteBtn');
+  if (!btn) return;
+  const n = parseInt(val);
+  btn.textContent = n === 0 ? '🔇' : n < 50 ? '🔉' : '🔊';
+}
+
+let _volBeforeMute = 100;
+function toggleMute() {
+  const app = window.SonattaApp;
+  const slider = document.getElementById('fpVolume');
+  if (app.audio.muted || app.audio.volume === 0) {
+    app.audio.muted = false;
+    app.audio.volume = _volBeforeMute / 100;
+    if (slider) { slider.value = _volBeforeMute; updateVolIcon(_volBeforeMute); }
+  } else {
+    _volBeforeMute = Math.round(app.audio.volume * 100);
+    app.audio.muted = true;
+    if (slider) { slider.value = 0; updateVolIcon(0); }
+  }
 }
 
 function seekTo(event) {
