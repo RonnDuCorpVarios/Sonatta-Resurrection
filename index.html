@@ -273,7 +273,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 #loginScreen, #registerScreen {
   bottom: 0 !important;
-  overflow-y: auto;
+  overflow: hidden !important;
+  justify-content: center !important;
 }
 
 .ws-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
@@ -2270,8 +2271,8 @@ html, body {
 ═══════════════════════════════════════════ -->
 <div id="loginScreen" class="screen">
   <button class="auth-back" onclick="showScreen('welcomeScreen')">←</button>
-  <div style="text-align:center;padding-top:16px">
-    <div class="ws-logo-wrap">
+  <div style="text-align:center;padding-top:8px">
+    <div class="ws-logo-wrap" style="transform:scale(0.75);transform-origin:center;margin-bottom:-12px;">
       <div class="ws-logo-ring">
         <div class="ws-logo-inner">
           <svg width="36" height="44" viewBox="0 0 36 50" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2287,8 +2288,8 @@ html, body {
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
     </div><!-- /ws-logo-wrap -->
-    <h1 class="ws-title" style="font-size:2rem;margin-top:8px;margin-bottom:2px">Sonatta</h1>
-    <p style="color:var(--text3);font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px">Bienvenido de vuelta</p>
+    <h1 class="ws-title" style="font-size:1.7rem;margin-top:0;margin-bottom:1px">Sonatta</h1>
+    <p style="color:var(--text3);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:14px">Bienvenido de vuelta</p>
   </div>
 
   <div class="auth-form">
@@ -2323,8 +2324,8 @@ html, body {
 ═══════════════════════════════════════════ -->
 <div id="registerScreen" class="screen">
   <button class="auth-back" onclick="showScreen('welcomeScreen')">←</button>
-  <div style="text-align:center;padding-top:16px">
-    <div class="ws-logo-wrap">
+  <div style="text-align:center;padding-top:8px">
+    <div class="ws-logo-wrap" style="transform:scale(0.75);transform-origin:center;margin-bottom:-12px;">
       <div class="ws-logo-ring">
         <div class="ws-logo-inner">
           <svg width="36" height="44" viewBox="0 0 36 50" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2340,8 +2341,8 @@ html, body {
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
     </div><!-- /ws-logo-wrap -->
-    <h1 class="ws-title" style="font-size:2rem;margin-top:8px;margin-bottom:2px">Sonatta</h1>
-    <p style="color:var(--text3);font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px">Crea tu cuenta gratis</p>
+    <h1 class="ws-title" style="font-size:1.7rem;margin-top:0;margin-bottom:1px">Sonatta</h1>
+    <p style="color:var(--text3);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:14px">Crea tu cuenta gratis</p>
   </div>
 
   <div class="auth-form">
@@ -3943,7 +3944,7 @@ async function loadGoogleDriveFiles(slot = 0) {
 
     if (totalFiles === 0) {
       if (countEl) countEl.textContent = '0';
-      updateGdriveCard(true, acc.email, 0);
+      updateDriveCard(slot, true, acc.email, 0);
       showToast('No se encontraron archivos de música en Drive 🎵');
       allDriveSongs = allDriveSongs.filter(s => s.driveSlot !== slot);
       renderSongsScreen();
@@ -3979,10 +3980,6 @@ async function loadGoogleDriveFiles(slot = 0) {
   } catch(e) {
     showToast('Error cargando Drive: ' + e.message, 'error');
     console.error('loadGoogleDriveFiles error:', e);
-  }
-}
-  } catch(e) {
-    showToast('Error cargando Drive: ' + e.message, 'error');
   }
 }
 </script>
