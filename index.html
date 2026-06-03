@@ -120,55 +120,64 @@
    VARIABLES Y RESET
 ════════════════════════════════════════════════ */
 :root {
-  /* Paleta principal — dark premium */
-  --bg:      #080810;
-  --bg2:     #0e0e1a;
-  --bg3:     #161625;
-  --bg4:     #1e1e30;
-  --border:  rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.12);
+  /* Paleta principal — dark gold premium */
+  --bg:      #0a0806;
+  --bg2:     #110e08;
+  --bg3:     #1a150a;
+  --bg4:     #241c0e;
+  --border:  rgba(212,160,40,0.12);
+  --border2: rgba(212,160,40,0.22);
 
-  /* Acentos — gradiente violeta/índigo */
-  --accent:       #6c47ff;
-  --accent-light: #8b6dff;
-  --accent-glow:  rgba(108,71,255,0.35);
-  --accent2:      #a78bfa;
-  --accent3:      #38bdf8;
-
-  /* Estados */
-  --green:  #22d3a0;
-  --red:    #f87171;
-  --yellow: #fbbf24;
-  --orange: #fb923c;
+  /* Acentos — gradiente dorado/ámbar */
+  --accent:       #d4a028;
+  --accent-light: #f0c060;
+  --accent-glow:  rgba(212,160,40,0.35);
+  --accent2:      #f0c060;
 
   /* Texto */
-  --text:  #eeeeff;
-  --text2: #9898b8;
-  --text3: #55556a;
+  --text:  #f5ead8;
+  --text2: #c8b48a;
+  --text3: #7a6840;
 
-  /* Tarjetas */
-  --card:        rgba(255,255,255,0.03);
-  --card-hover:  rgba(255,255,255,0.06);
-  --glass:       rgba(14,14,26,0.85);
-
-  /* Player */
-  --player-h: 80px;
-
-  /* Sombras */
-  --shadow-sm:  0 2px 8px rgba(0,0,0,0.4);
-  --shadow-md:  0 8px 24px rgba(0,0,0,0.5);
-  --shadow-lg:  0 20px 60px rgba(0,0,0,0.7);
-  --shadow-accent: 0 8px 32px rgba(108,71,255,0.4);
-
-  /* Superficies (usadas en new_global) */
-  --surface:  rgba(255,255,255,0.04);
-  --surface2: rgba(255,255,255,0.07);
+  /* Semánticos */
+  --card:    rgba(212,160,40,0.04);
+  --surface: rgba(212,160,40,0.06);
+  --surface2:rgba(212,160,40,0.10);
 
   /* Radios de borde */
   --radius-sm: 12px;
   --radius-md: 16px;
   --radius-lg: 20px;
   --radius-xl: 28px;
+
+  /* Colores estado */
+  --red:    #f87171;
+  --yellow: #fbbf24;
+  --orange: #fb923c;
+  --green:  #4ade80;
+
+  /* Sombras */
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.5);
+  --shadow-md:  0 8px 24px rgba(0,0,0,0.6);
+  --shadow-lg:  0 20px 60px rgba(0,0,0,0.8);
+  --shadow-accent: 0 8px 32px rgba(212,160,40,0.35);
+
+  /* Superficies */
+  --surface:  rgba(212,160,40,0.04);
+  --surface2: rgba(212,160,40,0.08);
+
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* Gold aliases */
+  --gold:       #d4a028;
+  --gold-light: #f0c060;
+  --gold-dark:  #c8720a;
+
+  /* Player */
+  --player-h: 68px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -629,7 +638,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 
 .fp-bg {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse at top, rgba(124,92,252,0.15) 0%, transparent 60%);
+  background: radial-gradient(ellipse at top, rgba(212,160,40,0.15) 0%, transparent 60%);
 }
 .fp-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -742,7 +751,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   border: none; color: white;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-size: 1.8rem;
-  box-shadow: 0 8px 32px rgba(124,92,252,0.4);
+  box-shadow: 0 8px 32px rgba(212,160,40,0.4);
   transition: transform 0.15s;
 }
 .fp-play-btn:active { transform: scale(0.95); }
@@ -772,7 +781,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   transition: background 0.15s;
 }
 .song-item:hover { background: var(--bg3); }
-.song-item.playing { background: rgba(124,92,252,0.1); }
+.song-item.playing { background: rgba(212,160,40,0.1); }
 
 .song-cover {
   width: 50px; height: 50px; border-radius: 10px; flex-shrink: 0;
@@ -960,7 +969,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   border: 1px solid transparent;
 }
 .chip-purple {
-  background: rgba(124,92,252,0.15); border-color: rgba(124,92,252,0.3);
+  background: rgba(212,160,40,0.15); border-color: rgba(212,160,40,0.3);
   color: var(--accent2);
 }
 .chip-green {
@@ -985,7 +994,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   left: 3px; top: 3px; border-radius: 50%; background: var(--text3);
   transition: transform 0.2s, background 0.2s;
 }
-.toggle input:checked + .toggle-slider { background: rgba(124,92,252,0.3); border-color: var(--accent); }
+.toggle input:checked + .toggle-slider { background: rgba(212,160,40,0.3); border-color: var(--accent); }
 .toggle input:checked + .toggle-slider::before { transform: translateX(20px); background: var(--accent2); }
 
 /* ════════════════════════════════════════════════
@@ -1055,7 +1064,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 .cloud-song-item:last-child { border-bottom: none; }
 .cloud-song-item:hover { background: var(--bg3); }
-.cloud-song-item.playing { background: rgba(124,92,252,0.1); }
+.cloud-song-item.playing { background: rgba(212,160,40,0.1); }
 .cloud-song-cover {
   width: 40px; height: 40px;
   border-radius: 8px;
@@ -1092,7 +1101,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   color: var(--text3); padding: 6px; border-radius: 8px;
   font-size: 1rem; transition: color 0.2s, background 0.2s;
 }
-.view-toggle-btn.active { color: var(--accent2); background: rgba(124,92,252,0.12); }
+.view-toggle-btn.active { color: var(--accent2); background: rgba(212,160,40,0.12); }
 .songs-source-filter {
   display: flex; gap: 6px; flex: 1; overflow-x: auto;
   scrollbar-width: none;
@@ -1113,7 +1122,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   position: relative;
 }
 .songs-list-view .song-row:hover { background: var(--bg3); }
-.songs-list-view .song-row.playing { background: rgba(124,92,252,0.1); }
+.songs-list-view .song-row.playing { background: rgba(212,160,40,0.1); }
 .song-row-cover {
   width: 46px; height: 46px; border-radius: 10px;
   background: var(--bg3); flex-shrink: 0; overflow: hidden;
@@ -1248,7 +1257,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 .folder-item:hover { background: var(--bg3); }
 .folder-icon {
   width: 42px; height: 42px; border-radius: 10px;
-  background: rgba(124,92,252,0.1); display: flex;
+  background: rgba(212,160,40,0.1); display: flex;
   align-items: center; justify-content: center; flex-shrink: 0;
   font-size: 1.3rem;
 }
@@ -1522,7 +1531,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   --gold-dim: rgba(201,168,76,0.15);
   --surface: rgba(255,255,255,0.03);
   --surface2: rgba(255,255,255,0.06);
-  --glow-purple: rgba(124,92,252,0.2);
+  --glow-purple: rgba(212,160,40,0.2);
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 24px;
@@ -1558,15 +1567,15 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   outline: none; transition: border-color 0.2s, background 0.2s;
 }
 #homeContent input[type=text]:focus {
-  border-color: rgba(124,92,252,0.4);
+  border-color: rgba(212,160,40,0.4);
   background: var(--surface2);
 }
 #homeContent input[type=text]::placeholder { color: var(--text3); }
 
 /* Add music button */
 #homeContent button[onclick*="importLocalFiles"] {
-  background: linear-gradient(135deg, rgba(124,92,252,0.2) 0%, rgba(56,189,248,0.1) 100%);
-  border: 1px solid rgba(124,92,252,0.3) !important;
+  background: linear-gradient(135deg, rgba(212,160,40,0.2) 0%, rgba(240,192,96,0.1) 100%);
+  border: 1px solid rgba(212,160,40,0.3) !important;
   border-radius: var(--radius-md) !important;
   color: var(--accent2) !important;
   font-weight: 700 !important;
@@ -1575,8 +1584,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   backdrop-filter: blur(8px);
 }
 #homeContent button[onclick*="importLocalFiles"]:hover {
-  background: linear-gradient(135deg, rgba(124,92,252,0.3) 0%, rgba(56,189,248,0.15) 100%);
-  border-color: rgba(124,92,252,0.5) !important;
+  background: linear-gradient(135deg, rgba(212,160,40,0.3) 0%, rgba(240,192,96,0.15) 100%);
+  border-color: rgba(212,160,40,0.5) !important;
   transform: translateY(-1px);
 }
 
@@ -1603,8 +1612,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 
 /* Now playing card */
 #nowPlayingCard {
-  background: linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(56,189,248,0.06) 100%) !important;
-  border: 1px solid rgba(124,92,252,0.2) !important;
+  background: linear-gradient(135deg, rgba(212,160,40,0.12) 0%, rgba(240,192,96,0.06) 100%) !important;
+  border: 1px solid rgba(212,160,40,0.2) !important;
   border-radius: var(--radius-lg) !important;
   padding: 16px !important;
   backdrop-filter: blur(12px);
@@ -1612,7 +1621,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 #nowPlayingCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(124,92,252,0.15);
+  box-shadow: 0 12px 40px rgba(212,160,40,0.15);
 }
 
 /* Song items en home */
@@ -1625,7 +1634,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 .song-item:hover { background: var(--surface2); transform: translateX(3px); }
 .song-item.playing {
-  background: linear-gradient(90deg, rgba(124,92,252,0.12) 0%, transparent 100%);
+  background: linear-gradient(90deg, rgba(212,160,40,0.12) 0%, transparent 100%);
 }
 .song-item.playing .song-name { color: var(--accent2); }
 
@@ -1645,20 +1654,20 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   backdrop-filter: blur(24px) saturate(1.5) !important;
   border: 1px solid rgba(255,255,255,0.08) !important;
   border-radius: var(--radius-lg) !important;
-  box-shadow: 0 -4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,92,252,0.1) !important;
+  box-shadow: 0 -4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(212,160,40,0.1) !important;
 }
 .mini-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.88rem; }
 .mini-play-btn {
   background: linear-gradient(135deg, var(--accent), var(--accent2)) !important;
-  box-shadow: 0 4px 16px rgba(124,92,252,0.4) !important;
+  box-shadow: 0 4px 16px rgba(212,160,40,0.4) !important;
   transition: transform 0.15s, box-shadow 0.15s !important;
 }
-.mini-play-btn:hover { transform: scale(1.1) !important; box-shadow: 0 6px 24px rgba(124,92,252,0.5) !important; }
+.mini-play-btn:hover { transform: scale(1.1) !important; box-shadow: 0 6px 24px rgba(212,160,40,0.5) !important; }
 .mini-progress-bar { background: linear-gradient(90deg, var(--accent), var(--accent2)) !important; }
 
 /* ── FULL PLAYER — immersive ─────────────────── */
 #fullPlayer {
-  background: linear-gradient(180deg, #0a0810 0%, #080810 100%) !important;
+  background: linear-gradient(180deg, #0a0806 0%, #080604 100%) !important;
   padding-bottom: env(safe-area-inset-bottom, 0px) !important;
   height: 100dvh !important;
   overflow: hidden !important;
@@ -1674,20 +1683,20 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   text-overflow: ellipsis !important;
   display: block !important;
   max-width: 100% !important;
-  color: #eeeeff !important;
+  color: #f5ead8 !important;
 }
 #fullPlayer .fp-artist-name {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   display: block !important;
-  color: #9898b8 !important;
+  color: #c8b48a !important;
 }
-#fullPlayer .fp-title-top { color: #55556a !important; }
-#fullPlayer .fp-times span { color: #55556a !important; }
+#fullPlayer .fp-title-top { color: #7a6840 !important; }
+#fullPlayer .fp-times span { color: #7a6840 !important; }
 /* Now playing card en homeScreen */
-#npTitle { color: #eeeeff !important; }
-#npArtist { color: #9898b8 !important; }
+#npTitle { color: #f5ead8 !important; }
+#npArtist { color: #c8b48a !important; }
 .fp-bg {
   background-size: cover !important;
   background-position: center !important;
@@ -1721,7 +1730,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 .fp-play-btn {
   width: 68px !important; height: 68px !important;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%) !important;
-  box-shadow: 0 12px 40px rgba(124,92,252,0.5) !important;
+  box-shadow: 0 12px 40px rgba(212,160,40,0.5) !important;
   font-size: 1.6rem !important;
   transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s !important;
 }
@@ -1760,8 +1769,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   transition: all 0.2s !important;
 }
 .source-chip.active {
-  background: rgba(124,92,252,0.2) !important;
-  border-color: rgba(124,92,252,0.4) !important;
+  background: rgba(212,160,40,0.2) !important;
+  border-color: rgba(212,160,40,0.4) !important;
   color: var(--accent2) !important;
 }
 .view-toggle-btn {
@@ -1772,8 +1781,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   transition: all 0.2s !important;
 }
 .view-toggle-btn.active {
-  background: rgba(124,92,252,0.15) !important;
-  border-color: rgba(124,92,252,0.3) !important;
+  background: rgba(212,160,40,0.15) !important;
+  border-color: rgba(212,160,40,0.3) !important;
   color: var(--accent2) !important;
 }
 
@@ -1785,7 +1794,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 .song-row:hover { background: var(--surface2) !important; }
 .song-row.playing {
-  background: linear-gradient(90deg, rgba(124,92,252,0.1) 0%, transparent 100%) !important;
+  background: linear-gradient(90deg, rgba(212,160,40,0.1) 0%, transparent 100%) !important;
   border-left: 2px solid var(--accent) !important;
 }
 .song-row.playing .song-row-title { color: var(--accent2) !important; }
@@ -1805,8 +1814,8 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   border-color: rgba(255,255,255,0.12) !important;
 }
 .song-grid-card.playing {
-  border-color: rgba(124,92,252,0.5) !important;
-  box-shadow: 0 0 24px rgba(124,92,252,0.2) !important;
+  border-color: rgba(212,160,40,0.5) !important;
+  box-shadow: 0 0 24px rgba(212,160,40,0.2) !important;
 }
 .song-grid-title { font-family: 'Syne', sans-serif !important; font-weight: 700 !important; }
 
@@ -1821,7 +1830,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   background: linear-gradient(135deg, var(--accent), var(--accent2)) !important;
   border-radius: 50% !important; font-size: 1rem !important;
   display: flex !important; align-items: center !important; justify-content: center !important;
-  box-shadow: 0 4px 16px rgba(124,92,252,0.35) !important;
+  box-shadow: 0 4px 16px rgba(212,160,40,0.35) !important;
   color: white !important;
   transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1) !important;
 }
@@ -1839,7 +1848,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   overflow: hidden !important;
 }
 .cloud-account-card:hover {
-  border-color: rgba(124,92,252,0.25) !important;
+  border-color: rgba(212,160,40,0.25) !important;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
 }
 .cloud-account-name { font-family: 'Syne', sans-serif !important; font-weight: 700 !important; }
@@ -1861,11 +1870,11 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   font-family: 'Syne', sans-serif !important;
   font-weight: 700 !important; letter-spacing: 0.03em !important;
   transition: all 0.2s !important;
-  box-shadow: 0 4px 16px rgba(124,92,252,0.25) !important;
+  box-shadow: 0 4px 16px rgba(212,160,40,0.25) !important;
 }
 .cloud-connect-btn:hover:not(:disabled) {
   transform: translateY(-1px) !important;
-  box-shadow: 0 6px 24px rgba(124,92,252,0.4) !important;
+  box-shadow: 0 6px 24px rgba(212,160,40,0.4) !important;
 }
 .cloud-connect-btn.connected {
   background: rgba(248,113,113,0.08) !important;
@@ -1899,7 +1908,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 .folder-icon {
   border-radius: 14px !important;
-  background: rgba(124,92,252,0.1) !important;
+  background: rgba(212,160,40,0.1) !important;
 }
 .folder-icon.song { background: rgba(34,211,153,0.1) !important; }
 .folder-name { font-family: 'Syne', sans-serif !important; font-weight: 700 !important; }
@@ -1919,7 +1928,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   transition: border-color 0.2s, background 0.2s !important;
 }
 .cfg-input:focus {
-  border-color: rgba(124,92,252,0.4) !important;
+  border-color: rgba(212,160,40,0.4) !important;
   background: rgba(255,255,255,0.06) !important;
 }
 .cfg-save-btn {
@@ -1929,9 +1938,9 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   transition: all 0.2s !important;
 }
 .cfg-avatar {
-  background: linear-gradient(135deg, var(--accent) 0%, #38bdf8 100%) !important;
+  background: linear-gradient(135deg, var(--accent) 0%, #f0c060 100%) !important;
   border: 2px solid rgba(255,255,255,0.1) !important;
-  box-shadow: 0 8px 24px rgba(124,92,252,0.3) !important;
+  box-shadow: 0 8px 24px rgba(212,160,40,0.3) !important;
 }
 
 /* ── CONTEXT MENU ────────────────────────────── */
@@ -1968,7 +1977,7 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   font-family: 'Syne', sans-serif !important; font-weight: 700 !important;
   transition: all 0.2s !important;
 }
-.empty-btn:hover { transform: translateY(-1px) !important; box-shadow: 0 6px 20px rgba(124,92,252,0.3) !important; }
+.empty-btn:hover { transform: translateY(-1px) !important; box-shadow: 0 6px 20px rgba(212,160,40,0.3) !important; }
 
 
 
@@ -2145,7 +2154,7 @@ html, body {
     font-family: 'Syne', sans-serif;
     font-size: 180px;
     font-weight: 900;
-    color: rgba(108,71,255,0.04);
+    color: rgba(212,160,40,0.04);
     letter-spacing: -0.03em;
     pointer-events: none;
     white-space: nowrap;
@@ -2389,7 +2398,7 @@ html, body {
           <p id="homeSubtitle" style="font-size:0.78rem;color:var(--text3);margin-top:2px;">¿Qué quieres escuchar hoy?</p>
         </div>
         <div id="homeAvatar" onclick="switchView('settings')"
-          style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#38bdf8);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;overflow:hidden;border:2px solid rgba(255,255,255,0.1);box-shadow:0 4px 16px rgba(124,92,252,0.3);transition:transform 0.2s;flex-shrink:0;"
+          style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#f0c060);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;overflow:hidden;border:2px solid rgba(255,255,255,0.1);box-shadow:0 4px 16px rgba(212,160,40,0.3);transition:transform 0.2s;flex-shrink:0;"
           onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'"></div>
       </div>
 
@@ -2399,7 +2408,7 @@ html, body {
         <input id="searchInput" type="text" placeholder="Buscar canciones, artistas..."
           oninput="filterSongs(this.value)"
           style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 14px 12px 42px;color:var(--text);font-size:0.85rem;font-family:'DM Sans',sans-serif;outline:none;transition:all 0.2s;box-sizing:border-box;"
-          onfocus="this.style.borderColor='rgba(124,92,252,0.4)';this.style.background='rgba(255,255,255,0.06)'"
+          onfocus="this.style.borderColor='rgba(212,160,40,0.4)';this.style.background='rgba(255,255,255,0.06)'"
           onblur="this.style.borderColor='rgba(255,255,255,0.08)';this.style.background='rgba(255,255,255,0.04)'">
       </div>
     </div>
@@ -2407,7 +2416,7 @@ html, body {
     <!-- Acciones rápidas -->
     <div style="padding:4px 16px 16px;display:flex;gap:10px;">
       <button onclick="importLocalFiles()"
-        style="flex:1;padding:12px 14px;background:linear-gradient(135deg,rgba(124,92,252,0.2),rgba(56,189,248,0.1));border:1px solid rgba(124,92,252,0.3);border-radius:14px;color:var(--accent2);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;">
+        style="flex:1;padding:12px 14px;background:linear-gradient(135deg,rgba(212,160,40,0.2),rgba(240,192,96,0.1));border:1px solid rgba(212,160,40,0.3);border-radius:14px;color:var(--accent2);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;">
         📁 Agregar música local
       </button>
       <button onclick="switchView('clouds')"
@@ -2516,7 +2525,7 @@ html, body {
     <!-- Botones de acción -->
     <div style="display:flex;gap:10px;margin-top:14px;">
       <button onclick="fpAddToPlaylist()" style="flex:1;padding:13px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s"
-        onmouseover="this.style.background='rgba(124,92,252,0.15)';this.style.borderColor='rgba(124,92,252,0.35)';this.style.color='var(--accent2)'"
+        onmouseover="this.style.background='rgba(212,160,40,0.15)';this.style.borderColor='rgba(212,160,40,0.35)';this.style.color='var(--accent2)'"
         onmouseout="this.style.background='rgba(255,255,255,0.06)';this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='var(--text2)'">
         <span style="font-size:1rem">🎶</span> Agregar a playlist
       </button>
@@ -2536,7 +2545,7 @@ html, body {
       <input id="songsSearchInput" type="text" placeholder="Buscar canciones, artistas..."
         oninput="filterSongsQuery(this.value)"
         style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px 10px 38px;color:var(--text);font-size:0.85rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.2s,background 0.2s;"
-        onfocus="this.style.borderColor='rgba(124,92,252,0.45)';this.style.background='rgba(255,255,255,0.08)'"
+        onfocus="this.style.borderColor='rgba(212,160,40,0.45)';this.style.background='rgba(255,255,255,0.08)'"
         onblur="this.style.borderColor='rgba(255,255,255,0.09)';this.style.background='rgba(255,255,255,0.05)'">
     </div>
     <!-- Chips de filtro + botones de vista -->
@@ -2656,12 +2665,12 @@ html, body {
       <h2 style="font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:-0.02em;color:var(--text)">Playlists 🎶</h2>
       <p style="font-size:0.78rem;color:var(--text3);margin-top:3px">Tus listas de reproducción</p>
     </div>
-    <button onclick="showCreatePlaylistModal()" style="width:40px;height:40px;background:rgba(124,92,252,0.15);border:1px solid rgba(124,92,252,0.3);border-radius:12px;color:var(--accent2);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s" title="Nueva playlist">+</button>
+    <button onclick="showCreatePlaylistModal()" style="width:40px;height:40px;background:rgba(212,160,40,0.15);border:1px solid rgba(212,160,40,0.3);border-radius:12px;color:var(--accent2);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s" title="Nueva playlist">+</button>
   </div>
 
   <div class="content-area" id="playlistsContent" style="flex:1;overflow-y:auto;padding:8px 16px 16px">
     <div style="text-align:center;padding:60px 20px;color:var(--text3)">
-      <div style="width:72px;height:72px;border-radius:22px;background:rgba(124,92,252,0.1);border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px">🎶</div>
+      <div style="width:72px;height:72px;border-radius:22px;background:rgba(212,160,40,0.1);border:1px solid rgba(212,160,40,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px">🎶</div>
       <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px">Sin playlists aún</div>
       <div style="font-size:0.8rem;color:var(--text3);margin-bottom:20px">Crea tu primera lista de reproducción</div>
       <button onclick="showCreatePlaylistModal()" style="padding:12px 24px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem">Crear playlist</button>
@@ -3521,7 +3530,7 @@ async function loadPlaylists() {
     if (!playlists.length) {
       container.innerHTML = `
         <div style="text-align:center;padding:60px 20px;color:var(--text3)">
-          <div style="width:72px;height:72px;border-radius:22px;background:rgba(124,92,252,0.1);border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px">🎶</div>
+          <div style="width:72px;height:72px;border-radius:22px;background:rgba(212,160,40,0.1);border:1px solid rgba(212,160,40,0.2);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px">🎶</div>
           <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px">Sin playlists aún</div>
           <div style="font-size:0.8rem;color:var(--text3);margin-bottom:20px">Crea tu primera lista de reproducción</div>
           <button onclick="showCreatePlaylistModal()" style="padding:12px 24px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem">Crear playlist</button>
@@ -3532,7 +3541,7 @@ async function loadPlaylists() {
     container.innerHTML = playlists.map(pl => `
       <div onclick="openPlaylist('${pl.id}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:16px;cursor:pointer;transition:background 0.15s;border:1px solid rgba(255,255,255,0.05);margin-bottom:8px;background:rgba(255,255,255,0.03)"
         onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-        <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(124,92,252,0.3),rgba(139,92,246,0.2));border:1px solid rgba(124,92,252,0.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">🎶</div>
+        <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(212,160,40,0.3),rgba(139,92,246,0.2));border:1px solid rgba(212,160,40,0.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">🎶</div>
         <div style="flex:1;min-width:0">
           <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(pl.name)}</div>
           <div style="font-size:0.72rem;color:var(--text3);margin-top:3px">${(pl.songs||[]).length} canción(es)</div>
@@ -3574,7 +3583,7 @@ function showPlaylistDetail(pl) {
         <h2 style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;color:var(--text)">${escHtml(pl.name)}</h2>
         <p style="font-size:0.75rem;color:var(--text3)">${songs.length} canción(es)</p>
       </div>
-      ${songs.length ? `<button onclick="playPlaylist('${pl.id}')" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.82rem;box-shadow:0 4px 16px rgba(124,92,252,0.3)">▶ Reproducir</button>` : ''}
+      ${songs.length ? `<button onclick="playPlaylist('${pl.id}')" style="padding:10px 18px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:0.82rem;box-shadow:0 4px 16px rgba(212,160,40,0.3)">▶ Reproducir</button>` : ''}
     </div>
     <div style="flex:1;overflow-y:auto">
       ${songs.length ? songs.map((s, i) => `
@@ -4063,7 +4072,7 @@ function renderSongsScreen() {
   function coverHtml(s) {
     let color, icon;
     if (s.source !== 'gdrive') {
-      color = 'rgba(124,92,252,0.2)'; icon = '🎵';          // local → violeta
+      color = 'rgba(212,160,40,0.2)'; icon = '🎵';          // local → violeta
     } else if (s.driveType === 'shared') {
       color = 'rgba(251,191,36,0.2)';  icon = '🔗';          // compartida → amarillo
     } else {
@@ -4324,7 +4333,7 @@ function showPlaylistPicker(playlists, song) {
       <button onclick="document.getElementById('playlistPickerModal').remove()" style="background:rgba(255,255,255,0.08);border:none;color:var(--text2);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem">✕</button>
     </div>
     ${playlists.length ? listItems : '<div style="text-align:center;padding:24px;color:var(--text3)">No tienes playlists aún</div>'}
-    <button onclick="showCreatePlaylistModal()" style="width:100%;margin-top:12px;padding:13px;background:rgba(124,92,252,0.15);border:1px solid rgba(124,92,252,0.3);border-radius:14px;color:var(--accent2);font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;font-size:0.88rem">
+    <button onclick="showCreatePlaylistModal()" style="width:100%;margin-top:12px;padding:13px;background:rgba(212,160,40,0.15);border:1px solid rgba(212,160,40,0.3);border-radius:14px;color:var(--accent2);font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;font-size:0.88rem">
       ➕ Nueva playlist
     </button>
   `;
@@ -4372,11 +4381,11 @@ function showCreatePlaylistModal() {
       <h3 style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text);margin-bottom:16px">Nueva playlist</h3>
       <input id="newPlaylistName" type="text" placeholder="Nombre de la playlist" maxlength="50"
         style="width:100%;padding:13px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text);font-size:0.9rem;outline:none;font-family:'DM Sans',sans-serif;margin-bottom:16px"
-        onfocus="this.style.borderColor='rgba(124,92,252,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
+        onfocus="this.style.borderColor='rgba(212,160,40,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
         onkeydown="if(event.key==='Enter')createPlaylistAndAdd()">
       <div style="display:flex;gap:10px">
         <button onclick="document.getElementById('createPlaylistModal').remove()" style="flex:1;padding:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text2);cursor:pointer;font-family:'Syne',sans-serif;font-weight:600">Cancelar</button>
-        <button onclick="createPlaylistAndAdd()" style="flex:1;padding:12px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;box-shadow:0 4px 16px rgba(124,92,252,0.3)">Crear</button>
+        <button onclick="createPlaylistAndAdd()" style="flex:1;padding:12px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;color:white;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;box-shadow:0 4px 16px rgba(212,160,40,0.3)">Crear</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
