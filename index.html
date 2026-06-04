@@ -18,6 +18,18 @@
 
   // ═══════════════════════════════════════════
   // CONFIGURACIÓN FIREBASE - SONATTA
+  // ⚠️  SEGURIDAD: estas claves son públicas por diseño de Firebase Web SDK,
+  //     pero DEBES proteger tu base de datos con Firestore Security Rules en
+  //     https://console.firebase.google.com → Firestore → Reglas
+  //     Ejemplo mínimo de reglas seguras:
+  //       rules_version = '2';
+  //       service cloud.firestore {
+  //         match /databases/{database}/documents {
+  //           match /users/{userId}/{document=**} {
+  //             allow read, write: if request.auth != null && request.auth.uid == userId;
+  //           }
+  //         }
+  //       }
   // ═══════════════════════════════════════════
   const firebaseConfig = {
     apiKey: "AIzaSyBXgHPxTfTJFkpMc_S7jZpxTMxr4yhxfuQ",
@@ -94,11 +106,16 @@
       if (user) {
         showScreen('homeScreen');
         // Esperar a que SonattaUI esté listo
+        // FIX: limitar intentos para evitar loop infinito si SonattaUI falla al cargar
+        let _tryLoginAttempts = 0;
         const tryLogin = () => {
           if (window.SonattaUI && window.SonattaUI.onUserLogin) {
             window.SonattaUI.onUserLogin(user);
-          } else {
+          } else if (_tryLoginAttempts < 50) { // máx ~5 segundos
+            _tryLoginAttempts++;
             setTimeout(tryLogin, 100);
+          } else {
+            console.error('SonattaUI no cargó después de 5 segundos. Verifica que el script principal está incluido.');
           }
         };
         tryLogin();
@@ -161,15 +178,6 @@
   --shadow-md:  0 8px 24px rgba(0,0,0,0.6);
   --shadow-lg:  0 20px 60px rgba(0,0,0,0.8);
   --shadow-accent: 0 8px 32px rgba(212,160,40,0.35);
-
-  /* Superficies */
-  --surface:  rgba(212,160,40,0.04);
-  --surface2: rgba(212,160,40,0.08);
-
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
 
   /* Gold aliases */
   --gold:       #d4a028;
@@ -2723,7 +2731,7 @@ html, body {
       </div>
     </div>
   </div>
-  </div>
+</div>
 
 <div id="playlistsScreen" class="screen">
   <div style="padding:52px 20px 16px;background:linear-gradient(180deg,var(--bg) 70%,transparent 100%);position:sticky;top:0;z-index:10;backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -2785,11 +2793,9 @@ html, body {
 // ═══════════════════════════════════════════
 // NAVEGACIÓN DE PANTALLAS
 // ═══════════════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const screen = document.getElementById(id);
-  if (screen) screen.classList.add('active');
-}
+// showScreen está definida en el módulo Firebase (línea ~72) con lógica completa
+// de nav activo y visibilidad del globalNav. Esta versión duplicada fue eliminada
+// para evitar que sobreescriba silenciosamente la versión correcta. (FIX BUG)
 
 // ═══════════════════════════════════════════
 // TOAST
@@ -2835,6 +2841,9 @@ async function handleRegister() {
 
   err.classList.remove('visible');
   if (!name || !email || !pass) { err.textContent = 'Completa todos los campos.'; err.classList.add('visible'); return; }
+  // FIX: validar formato de email antes de llamar a Firebase para dar un mensaje más claro
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) { err.textContent = 'El correo no tiene un formato válido.'; err.classList.add('visible'); return; }
   if (pass.length < 6) { err.textContent = 'La contraseña debe tener al menos 6 caracteres.'; err.classList.add('visible'); return; }
 
   btn.disabled = true; btn.textContent = 'Creando cuenta...';
@@ -2951,12 +2960,15 @@ window.SonattaUI = {
 
     // Cargar canciones desde Firestore
     loadSongsFromFirestore(user.uid);
-    // Cargar favoritos desde Firestore
+    // Cargar favoritos desde Firestore (fuente de verdad)
+    // FIX: al login siempre se sobreescribe la copia local con la de Firestore,
+    // para evitar que dos dispositivos se pisoteen los favoritos al iniciar sesión.
     window.SonattaApp.getDoc('users', user.uid).then(snap => {
       if (snap.exists()) {
         const data = snap.data();
-        if (data.favorites) {
+        if (Array.isArray(data.favorites)) {
           favorites = data.favorites;
+          // localStorage solo como caché de lectura rápida
           localStorage.setItem('sonatta_favs', JSON.stringify(favorites));
         }
       }
@@ -3527,8 +3539,16 @@ function closeFullPlayer() {
 // ═══════════════════════════════════════════
 // SONG MENU (placeholder)
 // ═══════════════════════════════════════════
+// FIX: showSongMenu era un placeholder que solo mostraba un toast.
+// Ahora delega a openSongMenu() que es la implementación real del menú contextual.
 function showSongMenu(index) {
-  showToast('Menú de canción — Parte 4 🎶');
+  // Crear un evento sintético centrado en la pantalla para posicionar el menú
+  const syntheticEvent = {
+    stopPropagation: () => {},
+    clientX: window.innerWidth / 2,
+    clientY: window.innerHeight / 2
+  };
+  openSongMenu(syntheticEvent, index);
 }
 
 // ═══════════════════════════════════════════
@@ -3563,6 +3583,9 @@ function initAudioListeners() {
     setElProp('fpProgressFill', 'style.width', pctStr);
     setElProp('npProgress', 'style.width', pctStr);
     setElText('fpCurrentTime', formatTime(audio.currentTime));
+    // FIX: actualizar --progress para que el thumb (posicionado con esta var CSS) se mueva
+    const progressWrap = document.getElementById('fpProgressWrap');
+    if (progressWrap) progressWrap.style.setProperty('--progress', pctStr);
   });
 
   audio.addEventListener('ended', () => {
@@ -3821,7 +3844,10 @@ async function connectGoogleDrive(slot = 0) {
   const popup = window.open(authUrl, `gdrive_auth_${slot}`, 'width=500,height=620,left=200,top=100');
 
   const handleMessage = async (event) => {
-    if (event.origin !== 'https://ronnducorpvarios.github.io') return;
+    // FIX: comparar con el origen derivado de REDIRECT_URI en vez de un string fijo,
+    // para que funcione si el dominio cambia o en desarrollo local.
+    const expectedOrigin = new URL(REDIRECT_URI).origin;
+    if (event.origin !== expectedOrigin) return;
     if (!event.data || event.data.type !== 'gdrive_code') return;
     // Verificar que es para este slot
     if (String(event.data.slot) !== String(slot)) return;
@@ -4330,16 +4356,24 @@ async function playSongFromList(index) {
 
   // Si es de Drive, necesita token
   if (song.source === 'gdrive') {
-    if (!gdriveToken) { showToast('Reconecta Google Drive', 'error'); return; }
+    // FIX: usar el token del slot correcto de la canción, no el gdriveToken global (slot 0)
+    const songSlot = song.driveSlot ?? 0;
+    const slotAcc = driveAccounts[songSlot];
+    if (!slotAcc || !slotAcc.token) {
+      showToast(`Reconecta Google Drive #${songSlot + 1}`, 'error'); return;
+    }
     showToast('Cargando: ' + (song.title||song.name) + '...');
     try {
-      const slotAcc = driveAccounts[song.driveSlot || 0];
-      const tokenToUse = slotAcc?.token || gdriveToken;
+      const tokenToUse = slotAcc.token;
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${song.driveId}?alt=media`, {
         headers: { Authorization: 'Bearer ' + tokenToUse }
       });
       if (!res.ok) throw new Error('Sin acceso');
       const blob = await res.blob();
+      // FIX memory leak: revocar blob URL anterior antes de crear uno nuevo
+      if (app.audio.src && app.audio.src.startsWith('blob:')) {
+        URL.revokeObjectURL(app.audio.src);
+      }
       const url = URL.createObjectURL(blob);
       app.audio.src = url;
     } catch(e) { showToast('Error: ' + e.message, 'error'); return; }
@@ -4840,15 +4874,20 @@ async function navigateToFolder(folderId, folderName) {
 function updateBreadcrumb() {
   const bc = document.getElementById('folderBreadcrumb');
   if (!bc) return;
+  // FIX XSS: usamos data-attributes en vez de insertar f.id/f.name dentro
+  // de strings de onclick, que permitía inyectar JS con nombres de carpeta maliciosos.
   bc.innerHTML = folderStack.map((f, i) => {
     const isLast = i === folderStack.length - 1;
     const sep = i > 0 ? '<span class="breadcrumb-sep"> / </span>' : '';
     if (isLast) {
       return `${sep}<span style="color:var(--text);font-size:0.82rem;font-weight:600;white-space:nowrap">${escHtml(f.name)}</span>`;
     }
-    return `${sep}<span class="breadcrumb-item" onclick="navigateToFolder('${f.id}','${escHtml(f.name)}')">${escHtml(f.name)}</span>`;
+    return `${sep}<span class="breadcrumb-item" data-folder-id="${escHtml(f.id)}" data-folder-name="${escHtml(f.name)}">${escHtml(f.name)}</span>`;
   }).join('');
-  // Scroll al final del breadcrumb
+  // Delegación de eventos — sin onclick inline inseguro
+  bc.querySelectorAll('.breadcrumb-item[data-folder-id]').forEach(el => {
+    el.addEventListener('click', () => navigateToFolder(el.dataset.folderId, el.dataset.folderName));
+  });
   bc.scrollLeft = bc.scrollWidth;
 }
 
@@ -4913,8 +4952,9 @@ function renderFolderContent({ folders, songs }) {
     return;
   }
 
+  // FIX XSS: todos los IDs y nombres van como data-attributes, nunca en onclick inline.
   const foldersHtml = folders.map(f => `
-    <div class="folder-item" onclick="navigateToFolder('${f.id}','${escHtml(f.name)}')">
+    <div class="folder-item folder-dir" data-fid="${escHtml(f.id)}" data-fname="${escHtml(f.name)}">
       <div class="folder-icon">📁</div>
       <div class="folder-info">
         <div class="folder-name">${escHtml(f.name)}</div>
@@ -4929,12 +4969,12 @@ function renderFolderContent({ folders, songs }) {
     const coverPart = `<img
         data-song-id="folder_${f.id}"
         data-source="gdrive"
-        data-drive-id="${f.id}"
+        data-drive-id="${escHtml(f.id)}"
         data-slot="${folderCurrentSlot}"
         class="lazy-cover" alt=""
         style="width:42px;height:42px;object-fit:cover;border-radius:10px;opacity:0;transition:opacity 0.3s">`;
     return `
-    <div class="folder-item" onclick="playFolderSong('${f.id}','${escHtml(f.name)}',${folderCurrentSlot},${i})">
+    <div class="folder-item" data-fsid="${escHtml(f.id)}" data-fsname="${escHtml(f.name)}" data-fsslot="${folderCurrentSlot}" data-fsindex="${i}">
       <div class="folder-icon song">${coverPart}</div>
       <div class="folder-info">
         <div class="folder-name">${escHtml(title)}</div>
@@ -4945,6 +4985,16 @@ function renderFolderContent({ folders, songs }) {
   }).join('');
 
   content.innerHTML = foldersHtml + songsHtml;
+
+  // Delegación de eventos — sin onclick inline
+  content.querySelectorAll('.folder-dir[data-fid]').forEach(el => {
+    el.addEventListener('click', () => navigateToFolder(el.dataset.fid, el.dataset.fname));
+  });
+  content.querySelectorAll('.folder-item[data-fsid]').forEach(el => {
+    el.addEventListener('click', () =>
+      playFolderSong(el.dataset.fsid, el.dataset.fsname, parseInt(el.dataset.fsslot), parseInt(el.dataset.fsindex))
+    );
+  });
 }
 
 // ── Reproducir canción desde el explorador ────────────────────
@@ -4962,6 +5012,10 @@ async function playFolderSong(fileId, fileName, slot, index) {
     );
     if (!res.ok) throw new Error('Sin acceso al archivo');
     const blob = await res.blob();
+    // FIX memory leak: revocar blob URL anterior antes de crear uno nuevo
+    if (app.audio.src && app.audio.src.startsWith('blob:')) {
+      URL.revokeObjectURL(app.audio.src);
+    }
     const url = URL.createObjectURL(blob);
 
     const song = {
@@ -4982,9 +5036,11 @@ async function playFolderSong(fileId, fileName, slot, index) {
       const mp = document.getElementById('miniPlayer');
       if (mp) mp.classList.add('visible');
       showToast('▶ ' + title, 'success');
-      // Marcar como playing
+      // FIX: la clase usada era 'folder-dir' pero el renderizador genera '.folder-item[data-fid]'.
+      // Ahora usamos el selector correcto para contar carpetas y calcular el offset real.
       document.querySelectorAll('#folderContent .folder-item').forEach((el, i) => {
-        el.classList.toggle('playing', i === index + document.querySelectorAll('#folderContent .folder-item.folder-dir').length);
+        const dirCount = document.querySelectorAll('#folderContent .folder-item[data-fid]').length;
+        el.classList.toggle('playing', i === index + dirCount);
       });
     }).catch(e => showToast('Error: ' + e.message, 'error'));
   } catch(e) {
