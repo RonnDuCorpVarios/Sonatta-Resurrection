@@ -3033,12 +3033,30 @@ async function restoreDriveSlot(slot, refreshToken, email) {
       return;
     }
 
-    // ✅ Token renovado
+    // ✅ Token renovado — verificar que tenga el scope correcto
     driveAccounts[slot] = {
       connected: true, token: result.access_token,
       refreshToken, email: email || `Google Drive #${slot+1}`,
       songs: [], slot, timer: null
     };
+
+    // Verificar scope del token renovado
+    const scopeCheck = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + result.access_token).then(r => r.json());
+    if (!scopeCheck.scope || !scopeCheck.scope.includes('drive')) {
+      // El refresh token fue creado con scope insuficiente — limpiar y pedir reconexión
+      driveAccounts[slot] = null;
+      const user = window.SonattaApp?.currentUser;
+      if (user) {
+        const upd = {};
+        upd[`gdrive_slot${slot}_connected`]     = false;
+        upd[`gdrive_slot${slot}_refresh_token`] = '';
+        window.SonattaApp.saveDoc('users', user.uid, upd);
+      }
+      if (pill) { pill.textContent = 'Reconectar'; pill.className = 'cloud-status-pill off'; }
+      if (btn)  { btn.textContent = '🔑 Reconectar (permisos)'; btn.disabled = false; btn.classList.remove('connected'); }
+      showToast(`Drive #${slot+1}: permisos insuficientes. Toca "Reconectar" en Nubes.`, 'error');
+      return;
+    }
 
     if (slot === 0) { gdriveToken = result.access_token; gdriveConnected = true; gdriveUserEmail = email; }
 
@@ -3986,15 +4004,25 @@ async function loadGoogleDriveFiles(slot = 0) {
   const query = MUSIC_EXTENSIONS.map(ext => `name contains '${ext}'`).join(' or ');
 
   try {
-    // Validar token antes de buscar — si expiró, renovar
-    const testRes = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + token);
+    // Validar token antes de buscar — verificar que tiene el scope correcto
+    const testRes = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + driveAccounts[slot].token);
     const testData = await testRes.json();
-    if (testData.error) {
-      showToast(`Drive #${slot+1}: token expirado, renovando...`);
-      const rt = driveAccounts[slot]?.refreshToken;
-      if (rt) await restoreDriveSlot(slot, rt, driveAccounts[slot]?.email);
-      // Usar el token renovado
-      if (!driveAccounts[slot]?.token) throw new Error('No se pudo renovar el token');
+    if (testData.error || !testData.scope) {
+      throw new Error('token_invalid');
+    }
+    // Verificar que el scope incluye acceso a archivos
+    if (!testData.scope.includes('drive') && !testData.scope.includes('auth/drive')) {
+      const user = window.SonattaApp?.currentUser;
+      if (user) {
+        const upd = {};
+        upd[`gdrive_slot${slot}_connected`]     = false;
+        upd[`gdrive_slot${slot}_refresh_token`] = '';
+        await window.SonattaApp.saveDoc('users', user.uid, upd);
+      }
+      driveAccounts[slot] = null;
+      updateDriveCard(slot, false, '', 0);
+      showToast(`Drive #${slot+1}: permisos insuficientes. Ve a Nubes y reconecta.`, 'error');
+      throw new Error('insufficient_scope');
     }
 
     // Una sola query sin corpora (compatible con todos los scopes de Drive)
@@ -4012,19 +4040,22 @@ async function loadGoogleDriveFiles(slot = 0) {
       });
       const data = await res.json();
       if (data.error) {
-        // Si el error es de scope insuficiente, pedir al usuario que reconecte
-        if (data.error.code === 403 && data.error.message?.includes('scope')) {
-          showToast(`Drive #${slot+1}: permisos insuficientes. Reconecta la cuenta.`, 'error');
-          // Mostrar botón de reconexión con prompt=consent para forzar nuevos permisos
-          const btn = document.getElementById(`gdrive-btn-${slot}`);
-          if (btn) {
-            btn.textContent = '🔑 Reconectar';
-            btn.style.background = 'rgba(248,113,113,0.2)';
-            btn.style.borderColor = 'rgba(248,113,113,0.4)';
-            btn.style.color = '#f87171';
-            btn.disabled = false;
+        const isScopeError = data.error.code === 403 ||
+          (data.error.message || '').toLowerCase().includes('scope') ||
+          (data.error.message || '').toLowerCase().includes('insufficient');
+        if (isScopeError) {
+          // Limpiar token inválido de Firestore para forzar re-autorización
+          const user = window.SonattaApp?.currentUser;
+          if (user) {
+            const upd = {};
+            upd[`gdrive_slot${slot}_connected`]      = false;
+            upd[`gdrive_slot${slot}_refresh_token`]  = '';
+            await window.SonattaApp.saveDoc('users', user.uid, upd);
           }
-          throw new Error(data.error.message);
+          driveAccounts[slot] = null;
+          showToast(`Drive #${slot+1}: permisos insuficientes. Reconecta la cuenta en Nubes.`, 'error');
+          updateDriveCard(slot, false, '', 0);
+          throw new Error('insufficient_scope');
         }
         throw new Error(data.error.message);
       }
