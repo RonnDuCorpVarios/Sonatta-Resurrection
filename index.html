@@ -3985,82 +3985,78 @@ async function loadGoogleDriveFiles(slot = 0) {
 
   const query = MUSIC_EXTENSIONS.map(ext => `name contains '${ext}'`).join(' or ');
 
-  try {
-    // Verificación básica del token antes de usarlo
-    const testRes = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + driveAccounts[slot].token);
-    const testData = await testRes.json();
-    if (testData.error) {
-      // Token inválido o expirado — limpiar y pedir reconexión
-      const user = window.SonattaApp?.currentUser;
-      if (user) {
-        const upd = {};
-        upd[`gdrive_slot${slot}_connected`]     = false;
-        upd[`gdrive_slot${slot}_refresh_token`] = '';
-        await window.SonattaApp.saveDoc('users', user.uid, upd);
-      }
-      driveAccounts[slot] = null;
-      updateDriveCard(slot, false, '', 0);
-      showToast(`Drive #${slot+1}: sesión expirada. Reconecta en Nubes.`, 'error');
-      return;
-    }
-    // Log del scope para diagnóstico
-    console.log(`Drive #${slot+1} scope:`, testData.scope);
-
-    // Una sola query sin corpora (compatible con todos los scopes de Drive)
-    // El campo ownedByMe nos permite diferenciar propias vs compartidas
-    let allFiles = [], pageToken = null, page = 1;
+  // Función reutilizable para paginar una query de Drive
+  async function driveQuery(extraParams = {}) {
+    let files = [], pt = null, pg = 1;
     do {
       const params = new URLSearchParams({
         q: `(${query}) and trashed=false`,
         fields: 'nextPageToken,files(id,name,mimeType,ownedByMe)',
         pageSize: '100',
-        ...(pageToken ? { pageToken } : {})
+        includeItemsFromAllDrives: 'true',
+        supportsAllDrives: 'true',
+        ...extraParams,
+        ...(pt ? { pageToken: pt } : {})
       });
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
-        headers: { Authorization: 'Bearer ' + token }
-      });
+      const res  = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`,
+                               { headers: { Authorization: 'Bearer ' + token } });
       const data = await res.json();
-      if (data.error) {
-        const msg = (data.error.message || '').toLowerCase();
-        const isScopeError = data.error.code === 403 || msg.includes('scope') || msg.includes('insufficient');
-        if (isScopeError) {
-          // Mostrar scope real del token para diagnosticar
-          const scopeInfo = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + driveAccounts[slot].token).then(r=>r.json()).catch(()=>({}));
-          console.error(`Drive #${slot+1} scope real:`, scopeInfo.scope);
-          console.error(`Drive #${slot+1} error:`, data.error);
-          showToast(`Drive #${slot+1}: scope insuficiente. Scope actual: ${scopeInfo.scope || 'desconocido'}`, 'error');
-          // Limpiar token inválido de Firestore
-          const user = window.SonattaApp?.currentUser;
-          if (user) {
-            const upd = {};
-            upd[`gdrive_slot${slot}_connected`]      = false;
-            upd[`gdrive_slot${slot}_refresh_token`]  = '';
-            await window.SonattaApp.saveDoc('users', user.uid, upd);
-          }
-          driveAccounts[slot] = null;
-          updateDriveCard(slot, false, '', 0);
-          throw new Error('insufficient_scope');
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      if (data.files) files = files.concat(data.files);
+      pt = data.nextPageToken || null;
+      pg++;
+      if (countEl) countEl.textContent = files.length + (pt ? '+' : '');
+    } while (pt && pg <= 100);
+    return files;
+  }
+
+  try {
+    // 1️⃣ Buscar en el Drive personal (corpora=user)
+    console.log(`Drive #${slot+1}: buscando en Drive personal...`);
+    let allFiles = await driveQuery({ corpora: 'user' });
+    console.log(`Drive #${slot+1}: Drive personal → ${allFiles.length} archivos`);
+
+    // 2️⃣ Si tiene pocos archivos, también buscar en Shared Drives
+    if (allFiles.length < 50) {
+      console.log(`Drive #${slot+1}: pocos archivos en personal, buscando Shared Drives...`);
+      showToast(`Drive #${slot+1}: buscando en carpetas compartidas...`);
+      try {
+        const sdRes  = await fetch('https://www.googleapis.com/drive/v3/drives?pageSize=20',
+                                   { headers: { Authorization: 'Bearer ' + token } });
+        const sdData = await sdRes.json();
+        const sharedDrives = sdData.drives || [];
+        console.log(`Drive #${slot+1}: Shared Drives encontrados:`, sharedDrives.map(d => d.name));
+
+        for (const drive of sharedDrives) {
+          const sdFiles = await driveQuery({ corpora: 'drive', driveId: drive.id });
+          console.log(`Drive #${slot+1}: "${drive.name}" → ${sdFiles.length} archivos`);
+          allFiles = allFiles.concat(sdFiles);
+          if (countEl) countEl.textContent = allFiles.length + '+';
         }
-        throw new Error(data.error.message);
+
+        // 3️⃣ También buscar en "Compartido conmigo" (sharedWithMe)
+        const swmFiles = await driveQuery({ q: `(${query}) and trashed=false and sharedWithMe=true`, corpora: 'user' }).catch(() => []);
+        console.log(`Drive #${slot+1}: Compartido conmigo → ${swmFiles.length} archivos`);
+        // Evitar duplicados por id
+        const existing = new Set(allFiles.map(f => f.id));
+        swmFiles.forEach(f => { if (!existing.has(f.id)) allFiles.push(f); });
+
+      } catch(sdErr) {
+        console.warn(`Drive #${slot+1}: error en Shared Drives:`, sdErr.message);
       }
-      if (data.files) allFiles = allFiles.concat(data.files);
-      pageToken = data.nextPageToken || null;
-      page++;
-      if (countEl) countEl.textContent = allFiles.length + (pageToken ? '+' : '');
-    } while (pageToken && page <= 100); // hasta 10,000 canciones con pageSize=100
+    }
+
+    if (countEl) countEl.textContent = allFiles.length;
+    console.log(`Drive #${slot+1}: total final → ${allFiles.length} archivos`);
 
     if (allFiles.length === 0) {
-      if (countEl) countEl.textContent = '0';
       updateDriveCard(slot, true, acc.email, 0);
-      showToast('No se encontraron archivos de música en Drive 🎵');
+      showToast(`Drive #${slot+1}: sin archivos de música encontrados 🎵`);
       allDriveSongs = allDriveSongs.filter(s => s.driveSlot !== slot);
       renderSongsScreen();
       return;
     }
 
-    if (countEl) countEl.textContent = allFiles.length;
-
-    // Diferenciar propias vs compartidas usando ownedByMe
     const newSongs = allFiles.map(f => ({
       id: `gdrive_${slot}_${f.id}`,
       driveId: f.id,
@@ -4081,7 +4077,7 @@ async function loadGoogleDriveFiles(slot = 0) {
     if (driveAccounts[slot]) driveAccounts[slot].songs = newSongs;
     updateDriveCard(slot, true, acc.email, allFiles.length);
     renderSongsScreen();
-    showToast(`✅ ${ownedCount} propias · ${sharedCount} compartidas (Drive #${slot+1})`, 'success');
+    showToast(`✅ Drive #${slot+1}: ${ownedCount} propias · ${sharedCount} compartidas`, 'success');
 
   } catch(e) {
     showToast('Error cargando Drive: ' + e.message, 'error');
