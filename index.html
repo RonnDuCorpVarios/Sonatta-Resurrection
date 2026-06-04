@@ -2548,14 +2548,10 @@ html, body {
         onfocus="this.style.borderColor='rgba(212,160,40,0.45)';this.style.background='rgba(255,255,255,0.08)'"
         onblur="this.style.borderColor='rgba(255,255,255,0.09)';this.style.background='rgba(255,255,255,0.05)'">
     </div>
-    <!-- Chips de filtro + botones de vista -->
+    <!-- Pestañas de fuente + botones de vista -->
     <div style="display:flex;align-items:center;gap:6px;width:100%;">
-      <div class="songs-source-filter" id="sourceFilter" style="flex:1;">
-        <div class="source-chip active" onclick="filterSource('all',this)">Todas</div>
-        <div class="source-chip" onclick="filterSource('local',this)">📱 Local</div>
-        <div class="source-chip" onclick="filterSource('gdrive_owned',this)">🔵 Mis Drive</div>
-        <div class="source-chip" onclick="filterSource('gdrive_shared',this)">🔗 Compartidas</div>
-        <div class="source-chip" onclick="filterSource('favs',this)">♥ Favoritos</div>
+      <div class="songs-source-filter" id="sourceTabsBar" style="flex:1;">
+        <!-- Se genera dinámicamente por buildSourceTabs() -->
       </div>
       <button class="view-toggle-btn active" id="btnList" onclick="setSongsView('list')" title="Lista">☰</button>
       <button class="view-toggle-btn" id="btnGrid" onclick="setSongsView('grid')" title="Cuadrícula">⊞</button>
@@ -3919,15 +3915,15 @@ async function loadGoogleDriveFiles(slot = 0) {
 
   const query = MUSIC_EXTENSIONS.map(ext => `name contains '${ext}'`).join(' or ');
 
-  // Función auxiliar para paginar una query de Drive
-  async function fetchDriveQuery(extraQuery, corpora = 'user') {
+  try {
+    // Una sola query sin corpora (compatible con todos los scopes de Drive)
+    // El campo ownedByMe nos permite diferenciar propias vs compartidas
     let allFiles = [], pageToken = null, page = 1;
     do {
       const params = new URLSearchParams({
-        q: `(${query}) and trashed=false and ${extraQuery}`,
+        q: `(${query}) and trashed=false`,
         fields: 'nextPageToken,files(id,name,mimeType,ownedByMe)',
         pageSize: '1000',
-        corpora,
         ...(pageToken ? { pageToken } : {})
       });
       const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
@@ -3940,18 +3936,8 @@ async function loadGoogleDriveFiles(slot = 0) {
       page++;
       if (countEl) countEl.textContent = allFiles.length + (pageToken ? '+' : '');
     } while (pageToken && page <= 10);
-    return allFiles;
-  }
 
-  try {
-    // Query 1: archivos propios del usuario
-    const ownedFiles   = await fetchDriveQuery(`'me' in owners`);
-    // Query 2: archivos compartidos con el usuario (no propios)
-    const sharedFiles  = await fetchDriveQuery(`not 'me' in owners`);
-
-    const totalFiles = ownedFiles.length + sharedFiles.length;
-
-    if (totalFiles === 0) {
+    if (allFiles.length === 0) {
       if (countEl) countEl.textContent = '0';
       updateDriveCard(slot, true, acc.email, 0);
       showToast('No se encontraron archivos de música en Drive 🎵');
@@ -3960,31 +3946,30 @@ async function loadGoogleDriveFiles(slot = 0) {
       return;
     }
 
-    if (countEl) countEl.textContent = totalFiles;
+    if (countEl) countEl.textContent = allFiles.length;
 
-    const mapFile = (f, driveType) => ({
+    // Diferenciar propias vs compartidas usando ownedByMe
+    const newSongs = allFiles.map(f => ({
       id: `gdrive_${slot}_${f.id}`,
       driveId: f.id,
       driveSlot: slot,
-      driveType,          // 'owned' | 'shared'
+      driveType: f.ownedByMe !== false ? 'owned' : 'shared',
       title: f.name.replace(/\.[^.]+$/, ''),
       name: f.name,
       artist: '',
       album: '',
       coverUrl: null,
       source: 'gdrive'
-    });
+    }));
 
-    const newSongs = [
-      ...ownedFiles.map(f  => mapFile(f, 'owned')),
-      ...sharedFiles.map(f => mapFile(f, 'shared'))
-    ];
+    const ownedCount  = newSongs.filter(s => s.driveType === 'owned').length;
+    const sharedCount = newSongs.filter(s => s.driveType === 'shared').length;
 
     allDriveSongs = allDriveSongs.filter(s => s.driveSlot !== slot).concat(newSongs);
     if (driveAccounts[slot]) driveAccounts[slot].songs = newSongs;
-    updateDriveCard(slot, true, acc.email, totalFiles);
+    updateDriveCard(slot, true, acc.email, allFiles.length);
     renderSongsScreen();
-    showToast(`✅ ${ownedFiles.length} propias · ${sharedFiles.length} compartidas (Drive #${slot+1})`, 'success');
+    showToast(`✅ ${ownedCount} propias · ${sharedCount} compartidas (Drive #${slot+1})`, 'success');
 
   } catch(e) {
     showToast('Error cargando Drive: ' + e.message, 'error');
@@ -4029,38 +4014,90 @@ function setSongsView(v) {
   renderSongsScreen();
 }
 
+// ── Construir pestañas dinámicas por fuente ──────────────────────────
+// Una pestaña por cuenta Drive conectada + Local + Favoritos
+function buildSourceTabs() {
+  const bar = document.getElementById('sourceTabsBar');
+  if (!bar) return;
+  const local = (window.SonattaApp?.songs || []).filter(s => s.source !== 'gdrive');
+  const all   = [...local, ...allDriveSongs];
+  const tabs  = [];
+
+  // Todas
+  tabs.push({ id: 'all', label: 'Todas', count: all.length });
+
+  // Local
+  if (local.length > 0)
+    tabs.push({ id: 'local', label: '📱 Local', count: local.length });
+
+  // Por cada Drive conectado → pestaña propias + pestaña compartidas
+  for (let slot = 0; slot <= 1; slot++) {
+    const acc = driveAccounts[slot];
+    if (!acc?.connected) continue;
+    const driveSongs  = allDriveSongs.filter(s => s.driveSlot === slot);
+    const owned       = driveSongs.filter(s => s.driveType !== 'shared');
+    const shared      = driveSongs.filter(s => s.driveType === 'shared');
+    const name        = (acc.email || `Drive ${slot+1}`).split('@')[0];
+    tabs.push({ id: `drive_${slot}`,        label: `☁️ ${name}`,            count: owned.length  });
+    if (shared.length > 0)
+      tabs.push({ id: `drive_${slot}_shared`, label: `🔗 Compartidas #${slot+1}`, count: shared.length });
+  }
+
+  // Favoritos
+  const favs = all.filter(s => favorites.includes(s.id));
+  if (favs.length > 0)
+    tabs.push({ id: 'favs', label: '♥ Favoritos', count: favs.length });
+
+  bar.innerHTML = tabs.map(t => `
+    <div class="source-chip ${sourceFilter === t.id ? 'active' : ''}"
+         onclick="filterSource('${t.id}',this)">
+      ${t.label}<span style="opacity:0.5;font-size:0.68rem;margin-left:3px">${t.count}</span>
+    </div>`).join('');
+}
+
 // ── Filtrar por fuente ───────────────────────────────────────────────
 function filterSource(src, el) {
   sourceFilter = src;
-  document.querySelectorAll('.source-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
+  document.querySelectorAll('#sourceTabsBar .source-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
   renderSongsScreen();
 }
 
-// ── Obtener canciones según filtro ───────────────────────────────────
+// ── Obtener canciones según pestaña activa ───────────────────────────
 function getFilteredSongs() {
-  const local = (window.SonattaApp && window.SonattaApp.songs || []).filter(s => s.source !== 'gdrive');
-  const drive = allDriveSongs;
-  const all = [...local, ...drive];
+  const local = (window.SonattaApp?.songs || []).filter(s => s.source !== 'gdrive');
+  const all   = [...local, ...allDriveSongs];
   let result;
-  if      (sourceFilter === 'local')        result = local;
-  else if (sourceFilter === 'gdrive_owned')  result = drive.filter(s => s.driveType === 'owned');
-  else if (sourceFilter === 'gdrive_shared') result = drive.filter(s => s.driveType === 'shared');
-  else if (sourceFilter === 'favs')          result = all.filter(s => favorites.includes(s.id));
-  else                                       result = all;
-  // Aplicar búsqueda por texto
+
+  if (sourceFilter === 'local') {
+    result = local;
+  } else if (sourceFilter === 'favs') {
+    result = all.filter(s => favorites.includes(s.id));
+  } else if (sourceFilter.startsWith('drive_')) {
+    const parts  = sourceFilter.split('_');   // ['drive','0'] o ['drive','0','shared']
+    const slot   = parseInt(parts[1]);
+    const shared = parts[2] === 'shared';
+    result = allDriveSongs.filter(s =>
+      s.driveSlot === slot &&
+      (shared ? s.driveType === 'shared' : s.driveType !== 'shared')
+    );
+  } else {
+    result = all;
+  }
+
   if (songsSearchQuery) {
-    result = result.filter(s => {
-      const title  = (s.title  || s.name || '').toLowerCase();
-      const artist = (s.artist || '').toLowerCase();
-      return title.includes(songsSearchQuery) || artist.includes(songsSearchQuery);
-    });
+    const q = songsSearchQuery;
+    result = result.filter(s =>
+      (s.title||s.name||'').toLowerCase().includes(q) ||
+      (s.artist||'').toLowerCase().includes(q)
+    );
   }
   return result;
 }
 
 // ── Renderizar pantalla canciones ────────────────────────────────────
 function renderSongsScreen() {
+  buildSourceTabs();   // reconstruir pestañas según nubes conectadas
   const songs = getFilteredSongs();
   const container = document.getElementById('songsListInner');
   if (!songs.length) {
@@ -4085,9 +4122,12 @@ function renderSongsScreen() {
   if (songsView === 'grid') {
     container.className = 'songs-grid-view';
     container.innerHTML = songs.map((s, i) => {
+      const driveName = s.source === 'gdrive'
+        ? (driveAccounts[s.driveSlot]?.email || `Drive ${(s.driveSlot||0)+1}`).split('@')[0]
+        : null;
       const src = s.source !== 'gdrive' ? '📱'
-        : s.driveType === 'shared'      ? '🔗'
-        :                                 '🔵';
+        : s.driveType === 'shared'      ? `🔗`
+        :                                 `☁️`;
       return `<div class="song-grid-card ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
         <div class="song-grid-cover">${coverHtml(s)}<div class="play-overlay">▶</div></div>
         <div class="song-grid-info">
@@ -4099,9 +4139,12 @@ function renderSongsScreen() {
   } else {
     container.className = 'songs-list-view';
     container.innerHTML = songs.map((s, i) => {
+      const driveName = s.source === 'gdrive'
+        ? (driveAccounts[s.driveSlot]?.email || `Drive ${(s.driveSlot||0)+1}`).split('@')[0]
+        : null;
       const src = s.source !== 'gdrive' ? '📱 Local'
-        : s.driveType === 'shared'      ? '🔗 Compartida'
-        :                                 '🔵 Mi Drive';
+        : s.driveType === 'shared'      ? `🔗 ${driveName}`
+        :                                 `☁️ ${driveName}`;
       const isFav = favorites.includes(s.id);
       return `<div class="song-row ${window.SonattaApp && window.SonattaApp.currentSong && window.SonattaApp.currentSong.id === s.id ? 'playing' : ''}" onclick="playSongFromList(${i})">
         <div class="song-row-cover">${coverHtml(s)}</div>
