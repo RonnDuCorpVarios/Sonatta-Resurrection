@@ -1090,29 +1090,97 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
 }
 
 
-/* ── PANTALLA CANCIONES ─────────────────────────── */
-.songs-toolbar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 16px; border-bottom: 1px solid var(--border);
-  background: var(--bg2); position: sticky; top: 0; z-index: 10;
+/* ── PANTALLA CANCIONES — nuevo layout ─────────────── */
+#songsScreen {
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
+
+/* Barra superior: búsqueda + botones de vista */
+.songs-topbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 52px 12px 8px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10; flex-shrink: 0;
+}
+
+/* Cuerpo dividido: sidebar + lista */
+.songs-body {
+  display: flex; flex: 1; overflow: hidden; min-height: 0;
+}
+
+/* Sidebar izquierdo con las fuentes */
+.songs-sidebar {
+  width: 72px; flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none;
+  display: flex; flex-direction: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.songs-sidebar::-webkit-scrollbar { display: none; }
+
+/* Cada ítem del sidebar */
+.src-tab {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px;
+  padding: 10px 4px; cursor: pointer;
+  border-radius: 12px; margin: 0 6px;
+  transition: background 0.15s;
+  position: relative;
+}
+.src-tab:hover { background: var(--bg3); }
+.src-tab.active {
+  background: rgba(212,160,40,0.15);
+  border: 1px solid rgba(212,160,40,0.3);
+}
+.src-tab .src-icon { font-size: 1.3rem; line-height: 1; }
+.src-tab .src-label {
+  font-size: 0.56rem; font-weight: 700; color: var(--text3);
+  text-align: center; line-height: 1.2;
+  max-width: 60px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.src-tab.active .src-label { color: var(--accent2); }
+.src-tab .src-count {
+  font-size: 0.5rem; color: var(--text3);
+  background: var(--bg4); border-radius: 8px;
+  padding: 1px 4px; min-width: 18px; text-align: center;
+}
+.src-tab.active .src-count {
+  background: rgba(212,160,40,0.2); color: var(--accent2);
+}
+/* Divisor entre grupos */
+.src-divider {
+  height: 1px; background: var(--border);
+  margin: 4px 10px;
+}
+
+/* Área de la lista */
+.songs-main {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Encabezado de sección dentro de la lista */
+.songs-section-header {
+  padding: 10px 16px 4px;
+  font-size: 0.62rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text3); position: sticky; top: 0;
+  background: var(--bg); z-index: 5;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
 .view-toggle-btn {
   background: none; border: none; cursor: pointer;
-  color: var(--text3); padding: 6px; border-radius: 8px;
+  color: var(--text3); padding: 6px 8px; border-radius: 8px;
   font-size: 1rem; transition: color 0.2s, background 0.2s;
 }
 .view-toggle-btn.active { color: var(--accent2); background: rgba(212,160,40,0.12); }
-.songs-source-filter {
-  display: flex; gap: 6px; flex: 1; overflow-x: auto;
-  scrollbar-width: none;
-}
-.source-chip {
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 20px; padding: 4px 12px;
-  font-size: 0.75rem; font-weight: 600; cursor: pointer;
-  color: var(--text2); white-space: nowrap; transition: all 0.2s;
-}
-.source-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* Lista de canciones */
 .songs-list-view .song-row {
@@ -2537,30 +2605,32 @@ html, body {
 </div>
 
 <div id="songsScreen" class="screen">
-  <!-- Toolbar -->
-  <div class="songs-toolbar">
-    <!-- Barra de búsqueda -->
-    <div style="position:relative;width:100%;margin-bottom:8px;">
-      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:0.9rem;opacity:0.4;pointer-events:none;">🔍</span>
-      <input id="songsSearchInput" type="text" placeholder="Buscar canciones, artistas..."
+
+  <!-- Barra superior: búsqueda + toggle vista -->
+  <div class="songs-topbar">
+    <div style="position:relative;flex:1;">
+      <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:0.85rem;opacity:0.35;pointer-events:none;">🔍</span>
+      <input id="songsSearchInput" type="text" placeholder="Buscar..."
         oninput="filterSongsQuery(this.value)"
-        style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:10px 12px 10px 38px;color:var(--text);font-size:0.85rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.2s,background 0.2s;"
-        onfocus="this.style.borderColor='rgba(212,160,40,0.45)';this.style.background='rgba(255,255,255,0.08)'"
-        onblur="this.style.borderColor='rgba(255,255,255,0.09)';this.style.background='rgba(255,255,255,0.05)'">
+        style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:9px 10px 9px 34px;color:var(--text);font-size:0.82rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;"
+        onfocus="this.style.borderColor='rgba(212,160,40,0.45)'"
+        onblur="this.style.borderColor='rgba(255,255,255,0.09)'">
     </div>
-    <!-- Pestañas de fuente + botones de vista -->
-    <div style="display:flex;align-items:center;gap:6px;width:100%;">
-      <div class="songs-source-filter" id="sourceTabsBar" style="flex:1;">
-        <!-- Se genera dinámicamente por buildSourceTabs() -->
-      </div>
-      <button class="view-toggle-btn active" id="btnList" onclick="setSongsView('list')" title="Lista">☰</button>
-      <button class="view-toggle-btn" id="btnGrid" onclick="setSongsView('grid')" title="Cuadrícula">⊞</button>
-    </div>
+    <button class="view-toggle-btn active" id="btnList" onclick="setSongsView('list')" title="Lista">☰</button>
+    <button class="view-toggle-btn" id="btnGrid" onclick="setSongsView('grid')" title="Cuadrícula">⊞</button>
   </div>
 
-  <!-- Lista / Grid -->
-  <div id="songsList" style="flex:1;overflow-y:auto;padding-bottom:8px;">
-    <div id="songsListInner" class="songs-list-view"></div>
+  <!-- Cuerpo: sidebar izquierdo + lista -->
+  <div class="songs-body">
+
+    <!-- Sidebar de fuentes -->
+    <div class="songs-sidebar" id="sourceTabsBar"></div>
+
+    <!-- Lista principal -->
+    <div class="songs-main" id="songsList">
+      <div id="songsListInner" class="songs-list-view"></div>
+    </div>
+
   </div>
 
   <!-- Reproductor sticky -->
@@ -3923,7 +3993,7 @@ async function loadGoogleDriveFiles(slot = 0) {
       const params = new URLSearchParams({
         q: `(${query}) and trashed=false`,
         fields: 'nextPageToken,files(id,name,mimeType,ownedByMe)',
-        pageSize: '1000',
+        pageSize: '100',
         ...(pageToken ? { pageToken } : {})
       });
       const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, {
@@ -4014,51 +4084,60 @@ function setSongsView(v) {
   renderSongsScreen();
 }
 
-// ── Construir pestañas dinámicas por fuente ──────────────────────────
-// Una pestaña por cuenta Drive conectada + Local + Favoritos
+// ── Construir sidebar de fuentes ─────────────────────────────────────
 function buildSourceTabs() {
   const bar = document.getElementById('sourceTabsBar');
   if (!bar) return;
   const local = (window.SonattaApp?.songs || []).filter(s => s.source !== 'gdrive');
   const all   = [...local, ...allDriveSongs];
-  const tabs  = [];
+  let html    = '';
 
   // Todas
-  tabs.push({ id: 'all', label: 'Todas', count: all.length });
+  html += srcTabHtml('all', '🎵', 'Todas', all.length);
+
+  // Favoritos (siempre visible arriba si hay)
+  const favs = all.filter(s => favorites.includes(s.id));
+  if (favs.length > 0)
+    html += srcTabHtml('favs', '♥', 'Favs', favs.length);
+
+  // Divisor
+  html += '<div class="src-divider"></div>';
 
   // Local
   if (local.length > 0)
-    tabs.push({ id: 'local', label: '📱 Local', count: local.length });
+    html += srcTabHtml('local', '📱', 'Local', local.length);
 
-  // Por cada Drive conectado → pestaña propias + pestaña compartidas
+  // Por cada Drive conectado
   for (let slot = 0; slot <= 1; slot++) {
     const acc = driveAccounts[slot];
     if (!acc?.connected) continue;
-    const driveSongs  = allDriveSongs.filter(s => s.driveSlot === slot);
-    const owned       = driveSongs.filter(s => s.driveType !== 'shared');
-    const shared      = driveSongs.filter(s => s.driveType === 'shared');
-    const name        = (acc.email || `Drive ${slot+1}`).split('@')[0];
-    tabs.push({ id: `drive_${slot}`,        label: `☁️ ${name}`,            count: owned.length  });
+    const driveSongs = allDriveSongs.filter(s => s.driveSlot === slot);
+    const owned      = driveSongs.filter(s => s.driveType !== 'shared');
+    const shared     = driveSongs.filter(s => s.driveType === 'shared');
+    const name       = (acc.email || `Drive ${slot+1}`).split('@')[0];
+    // Pestaña de la cuenta (propias)
+    html += srcTabHtml(`drive_${slot}`, '☁️', name, owned.length);
+    // Sub-pestaña compartidas
     if (shared.length > 0)
-      tabs.push({ id: `drive_${slot}_shared`, label: `🔗 Compartidas #${slot+1}`, count: shared.length });
+      html += srcTabHtml(`drive_${slot}_shared`, '🔗', `Comp.${slot+1}`, shared.length);
   }
 
-  // Favoritos
-  const favs = all.filter(s => favorites.includes(s.id));
-  if (favs.length > 0)
-    tabs.push({ id: 'favs', label: '♥ Favoritos', count: favs.length });
+  bar.innerHTML = html;
+}
 
-  bar.innerHTML = tabs.map(t => `
-    <div class="source-chip ${sourceFilter === t.id ? 'active' : ''}"
-         onclick="filterSource('${t.id}',this)">
-      ${t.label}<span style="opacity:0.5;font-size:0.68rem;margin-left:3px">${t.count}</span>
-    </div>`).join('');
+function srcTabHtml(id, icon, label, count) {
+  const active = sourceFilter === id ? 'active' : '';
+  return `<div class="src-tab ${active}" onclick="filterSource('${id}',this)">
+    <span class="src-icon">${icon}</span>
+    <span class="src-label">${label}</span>
+    <span class="src-count">${count > 999 ? Math.round(count/1000)+'k' : count}</span>
+  </div>`;
 }
 
 // ── Filtrar por fuente ───────────────────────────────────────────────
 function filterSource(src, el) {
   sourceFilter = src;
-  document.querySelectorAll('#sourceTabsBar .source-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#sourceTabsBar .src-tab').forEach(c => c.classList.remove('active'));
   if (el) el.classList.add('active');
   renderSongsScreen();
 }
@@ -4095,14 +4174,47 @@ function getFilteredSongs() {
   return result;
 }
 
+function getSectionTitle() {
+  if (sourceFilter === 'all')   return 'Todas las canciones';
+  if (sourceFilter === 'local') return '📱 Música local';
+  if (sourceFilter === 'favs')  return '♥ Favoritos';
+  if (sourceFilter.startsWith('drive_')) {
+    const parts  = sourceFilter.split('_');
+    const slot   = parseInt(parts[1]);
+    const shared = parts[2] === 'shared';
+    const email  = driveAccounts[slot]?.email || `Drive ${slot+1}`;
+    return shared ? `🔗 Compartidas · ${email.split('@')[0]}` : `☁️ ${email}`;
+  }
+  return 'Canciones';
+}
+
 // ── Renderizar pantalla canciones ────────────────────────────────────
 function renderSongsScreen() {
-  buildSourceTabs();   // reconstruir pestañas según nubes conectadas
+  buildSourceTabs();
   const songs = getFilteredSongs();
   const container = document.getElementById('songsListInner');
+
+  // Encabezado dinámico de la sección
+  const headerEl = document.getElementById('songsSectionHeader');
+  const headerTitle = getSectionTitle();
+  if (headerEl) {
+    headerEl.querySelector('.src-header-title').textContent = headerTitle;
+    headerEl.querySelector('.src-header-count').textContent = songs.length + ' canciones';
+  } else {
+    const hdr = document.createElement('div');
+    hdr.id = 'songsSectionHeader';
+    hdr.className = 'songs-section-header';
+    hdr.innerHTML = `<span class="src-header-title">${headerTitle}</span><span class="src-header-count">${songs.length} canciones</span>`;
+    container.parentNode.insertBefore(hdr, container);
+  }
+
   if (!songs.length) {
     container.className = '';
-    container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3)"><div style="font-size:3rem">🎵</div><div style="margin-top:12px">Sin canciones</div><div style="font-size:0.8rem;margin-top:6px">Conecta una nube o agrega música local</div></div>';
+    container.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text3)">
+      <div style="font-size:3rem">🎵</div>
+      <div style="margin-top:12px;font-weight:600">Sin canciones</div>
+      <div style="font-size:0.8rem;margin-top:6px">Conecta una nube o agrega música local</div>
+    </div>`;
     return;
   }
   // Placeholder visual según tipo de canción
@@ -4729,10 +4841,10 @@ async function loadFolderContent(folderId) {
 
     // Traer carpetas y archivos de música en paralelo
     const [foldersRes, songsRes] = await Promise.all([
-      fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(parentQ + " and mimeType='application/vnd.google-apps.folder' and trashed=false")}&fields=files(id,name,mimeType)&orderBy=name&pageSize=200`, {
+      fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(parentQ + " and mimeType='application/vnd.google-apps.folder' and trashed=false")}&fields=files(id,name,mimeType)&orderBy=name&pageSize=100`, {
         headers: { Authorization: 'Bearer ' + token }
       }),
-      fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(parentQ + " and (" + MUSIC_EXT.map(e => `name contains '${e}'`).join(' or ') + ") and trashed=false")}&fields=files(id,name,mimeType,thumbnailLink)&orderBy=name&pageSize=500`, {
+      fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(parentQ + " and (" + MUSIC_EXT.map(e => `name contains '${e}'`).join(' or ') + ") and trashed=false")}&fields=files(id,name,mimeType,thumbnailLink)&orderBy=name&pageSize=100`, {
         headers: { Authorization: 'Bearer ' + token }
       })
     ]);
