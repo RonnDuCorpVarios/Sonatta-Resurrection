@@ -1836,12 +1836,13 @@ h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
   align-items: stretch !important;
 }
 .source-chip {
-  background: var(--surface) !important;
-  border: 1px solid rgba(255,255,255,0.07) !important;
+  background: rgba(80,80,90,0.25) !important;
+  border: 1px solid rgba(160,160,170,0.25) !important;
   border-radius: 20px !important;
   font-family: 'Syne', sans-serif !important;
   font-size: 0.72rem !important; font-weight: 700 !important;
   letter-spacing: 0.04em !important;
+  color: rgba(180,180,190,0.75) !important;
   transition: all 0.2s !important;
 }
 .source-chip.active {
@@ -2750,7 +2751,11 @@ html, body {
       <div class="cfg-section-title">Cuenta</div>
       <div class="cfg-card">
         <div class="cfg-profile-row">
-          <div class="cfg-avatar-wrap"><div class="cfg-avatar" id="settingsAvatar"></div></div>
+          <div class="cfg-avatar-wrap" onclick="document.getElementById('avatarFileInput').click()" title="Cambiar foto de perfil" style="cursor:pointer;">
+              <div class="cfg-avatar" id="settingsAvatar"></div>
+              <div style="position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:var(--accent);border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:0.75rem;pointer-events:none;">📷</div>
+              <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="uploadAvatarPhoto(event)">
+            </div>
           <div class="cfg-profile-info">
             <div class="cfg-field-label">Nombre</div>
             <div class="cfg-field-row"><input class="cfg-input" id="settingsName" placeholder="Tu nombre"><button class="cfg-save-btn" onclick="saveName()">Guardar</button></div>
@@ -2962,6 +2967,14 @@ window.SonattaUI = {
           // localStorage solo como caché de lectura rápida
           localStorage.setItem('sonatta_favs', JSON.stringify(favorites));
         }
+        // Cargar foto de perfil guardada en Firestore
+        if (data.photoBase64) {
+          ['settingsAvatar', 'homeAvatar'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.innerHTML = `<img src="${data.photoBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+          });
+        }
       }
     }).catch(() => {});
     // Migrar playlists viejas al nuevo formato (una sola vez)
@@ -3070,6 +3083,62 @@ async function restoreDriveSlot(slot, refreshToken, email) {
 // ═══════════════════════════════════════════
 // GUARDAR NOMBRE DE USUARIO
 // ═══════════════════════════════════════════
+// ── Subir foto de perfil ─────────────────────────────────────
+async function uploadAvatarPhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const app = window.SonattaApp;
+  if (!app || !app.currentUser) { showToast('Inicia sesión primero', 'error'); return; }
+
+  // Validar tamaño (max 2MB) y tipo
+  if (file.size > 2 * 1024 * 1024) { showToast('Imagen demasiado grande (máx 2MB)', 'error'); return; }
+  if (!file.type.startsWith('image/')) { showToast('Selecciona una imagen válida', 'error'); return; }
+
+  showToast('Subiendo foto...');
+
+  try {
+    // Convertir a base64 y redimensionar a 200x200 usando canvas
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 200; canvas.height = 200;
+          const ctx = canvas.getContext('2d');
+          // Crop cuadrado centrado
+          const side = Math.min(img.width, img.height);
+          const sx = (img.width - side) / 2;
+          const sy = (img.height - side) / 2;
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, 200, 200);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    // Guardar base64 en Firestore (campo photoBase64)
+    await app.saveDoc('users', app.currentUser.uid, { photoBase64: dataUrl });
+
+    // Actualizar UI inmediatamente
+    ['settingsAvatar', 'homeAvatar'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    });
+
+    showToast('Foto actualizada ✓', 'success');
+  } catch(e) {
+    console.error(e);
+    showToast('Error al subir la foto', 'error');
+  }
+  // Limpiar input para poder volver a elegir la misma imagen
+  event.target.value = '';
+}
+
 async function saveName() {
   const name = document.getElementById('settingsName').value.trim();
   if (!name) return;
@@ -4663,7 +4732,7 @@ function updateGdriveCard(connected, email, songCount) { updateDriveCard(0, conn
 <nav class="bottom-nav" id="globalNav" style="display:none">
   <button class="nav-item" id="gnav-home" onclick="switchView('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg><span class="nav-label">Inicio</span></button>
   <button class="nav-item" id="gnav-clouds" onclick="switchView('clouds')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg><span class="nav-label">Nubes</span></button>
-  <button class="nav-item" id="gnav-songs" onclick="switchView('songs')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-label">Canciones</span></button>
+  <button class="nav-item" id="gnav-songs" onclick="switchView('songs')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" width="22" height="22"><path d="M12 2c-.4 0-.75.32-.75.72v10.1a3.25 3.25 0 00-1.5-.37C7.9 12.45 6.5 13.85 6.5 15.5s1.4 3.05 3.25 3.05c1.75 0 3.15-1.3 3.25-2.95V6.55l3.5-.9V3.1L12.75 4V2.72C12.75 2.32 12.4 2 12 2z"/></svg><span class="nav-label">Canciones</span></button>
   <button class="nav-item" id="gnav-folders" onclick="switchView('folders')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg><span class="nav-label">Carpetas</span></button>
   <button class="nav-item" id="gnav-playlists" onclick="switchView('playlists')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span class="nav-label">Playlists</span></button>
   <button class="nav-item" id="gnav-settings" onclick="switchView('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg><span class="nav-label">Perfil</span></button>
