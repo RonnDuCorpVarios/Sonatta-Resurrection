@@ -4438,12 +4438,42 @@ async function playSongFromList(index) {
       showToast(`Reconecta Google Drive #${songSlot + 1}`, 'error'); return;
     }
     // FIX DELAY: streaming directo con token en query param — sin descarga blob
-    try {
-      if (app.audio.src && app.audio.src.startsWith('blob:')) {
-        URL.revokeObjectURL(app.audio.src);
-      }
-      app.audio.src = `https://www.googleapis.com/drive/v3/files/${song.driveId}?alt=media&access_token=${encodeURIComponent(slotAcc.token)}`;
-    } catch(e) { showToast('Error: ' + e.message, 'error'); return; }
+    if (app.audio.src && app.audio.src.startsWith('blob:')) {
+      URL.revokeObjectURL(app.audio.src);
+    }
+    const streamUrl = `https://www.googleapis.com/drive/v3/files/${song.driveId}?alt=media&access_token=${encodeURIComponent(slotAcc.token)}`;
+
+    app.currentSong = song;
+    app.currentIndex = index;
+
+    const afterLoad = () => {
+      app.audio.removeEventListener('canplay', afterLoad);
+      app.audio.removeEventListener('error', onError);
+      app.audio.play().then(() => {
+        app.isPlaying = true;
+        updatePlayerUI(song);
+        loadAndApplyCover(song);
+        updatePlayButtons(true);
+        updateSongsPlayer(song);
+        renderSongsScreen();
+        const nps = document.getElementById('nowPlayingSection');
+        if (nps) nps.style.display = 'block';
+        document.getElementById('songsPlayer').style.display = 'block';
+        const mp = document.getElementById('miniPlayer');
+        if (mp) mp.classList.add('visible');
+      }).catch(e => { showToast('Error al reproducir', 'error'); closeFullPlayer(); });
+    };
+    const onError = (e) => {
+      app.audio.removeEventListener('canplay', afterLoad);
+      app.audio.removeEventListener('error', onError);
+      showToast('Error cargando canción', 'error');
+      closeFullPlayer();
+    };
+    app.audio.addEventListener('canplay', afterLoad, { once: true });
+    app.audio.addEventListener('error', onError, { once: true });
+    app.audio.src = streamUrl;
+    app.audio.load();
+    return; // la reproducción continúa en afterLoad
   } else {
     app.audio.src = song.url || song.streamUrl || '';
   }
@@ -4452,12 +4482,11 @@ async function playSongFromList(index) {
   app.currentIndex = index;
   app.audio.play().then(() => {
     app.isPlaying = true;
-    updatePlayerUI(song);          // actualiza npTitle, npArtist, miniPlayer
-    loadAndApplyCover(song);       // carga carátula solo al reproducir
+    updatePlayerUI(song);
+    loadAndApplyCover(song);
     updatePlayButtons(true);
     updateSongsPlayer(song);
     renderSongsScreen();
-    // Mostrar now playing card en homeScreen
     const nps = document.getElementById('nowPlayingSection');
     if (nps) nps.style.display = 'block';
     document.getElementById('songsPlayer').style.display = 'block';
@@ -5081,68 +5110,61 @@ async function playFolderSong(fileId, fileName, slot, index) {
     title, name: fileName, artist: '', source: 'gdrive', coverUrl: null
   };
 
-  try {
-    // FIX DELAY: en lugar de descargar el blob completo (4-5s), usamos streaming directo.
-    // Creamos una URL autenticada via fetch con mode:'cors' y la convertimos a ObjectURL
-    // solo si el navegador no soporta el header Authorization en <audio src>.
-    // Estrategia: asignar src con token en query param para streaming inmediato.
-    const streamUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${encodeURIComponent(acc.token)}`;
-
-    // Revocar blob anterior si existía
-    if (app.audio.src && app.audio.src.startsWith('blob:')) {
-      URL.revokeObjectURL(app.audio.src);
-    }
-
-    app.audio.src = streamUrl;
-    app.currentSong = song;
-
-    // Intentar reproducción inmediata sin esperar descarga
-    const playPromise = app.audio.play();
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        app.isPlaying = true;
-        updatePlayerUI(song);
-        updatePlayButtons(true);
-        updateSongsPlayer(song);
-        const mp = document.getElementById('miniPlayer');
-        if (mp) mp.classList.add('visible');
-        showToast('▶ ' + title, 'success');
-        document.querySelectorAll('#folderContent .folder-item').forEach((el, i) => {
-          const dirCount = document.querySelectorAll('#folderContent .folder-item[data-fid]').length;
-          el.classList.toggle('playing', i === index + dirCount);
-        });
-      }).catch(async (e) => {
-        // Fallback: si el streaming directo falla (CORS), descargar blob
-        console.warn('Streaming directo falló, usando blob fallback:', e.message);
-        showToast('Cargando: ' + title + '...');
-        try {
-          const res = await fetch(
-            `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-            { headers: { Authorization: 'Bearer ' + acc.token } }
-          );
-          if (!res.ok) throw new Error('Sin acceso al archivo');
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          app.audio.src = url;
-          app.currentSong = song;
-          await app.audio.play();
-          app.isPlaying = true;
-          updatePlayerUI(song);
-          updatePlayButtons(true);
-          updateSongsPlayer(song);
-          const mp = document.getElementById('miniPlayer');
-          if (mp) mp.classList.add('visible');
-          showToast('▶ ' + title, 'success');
-          document.querySelectorAll('#folderContent .folder-item').forEach((el, i) => {
-            const dirCount = document.querySelectorAll('#folderContent .folder-item[data-fid]').length;
-            el.classList.toggle('playing', i === index + dirCount);
-          });
-        } catch(e2) { showToast('Error: ' + e2.message, 'error'); }
-      });
-    }
-  } catch(e) {
-    showToast('Error: ' + e.message, 'error');
+  if (app.audio.src && app.audio.src.startsWith('blob:')) {
+    URL.revokeObjectURL(app.audio.src);
   }
+
+  const streamUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${encodeURIComponent(acc.token)}`;
+  app.currentSong = song;
+
+  const onCanPlay = () => {
+    app.audio.removeEventListener('canplay', onCanPlay);
+    app.audio.removeEventListener('error', onStreamError);
+    app.audio.play().then(() => {
+      app.isPlaying = true;
+      updatePlayerUI(song);
+      updatePlayButtons(true);
+      updateSongsPlayer(song);
+      const mp = document.getElementById('miniPlayer');
+      if (mp) mp.classList.add('visible');
+      showToast('▶ ' + title, 'success');
+      document.querySelectorAll('#folderContent .folder-item').forEach((el, i) => {
+        const dirCount = document.querySelectorAll('#folderContent .folder-item[data-fid]').length;
+        el.classList.toggle('playing', i === index + dirCount);
+      });
+    }).catch(e => showToast('Error: ' + e.message, 'error'));
+  };
+
+  const onStreamError = async () => {
+    app.audio.removeEventListener('canplay', onCanPlay);
+    app.audio.removeEventListener('error', onStreamError);
+    // Fallback blob si el streaming directo falla
+    console.warn('Streaming directo falló, usando blob fallback');
+    showToast('Cargando: ' + title + '...');
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { Authorization: 'Bearer ' + acc.token } }
+      );
+      if (!res.ok) throw new Error('Sin acceso al archivo');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      app.audio.src = blobUrl;
+      await app.audio.play();
+      app.isPlaying = true;
+      updatePlayerUI(song);
+      updatePlayButtons(true);
+      updateSongsPlayer(song);
+      const mp = document.getElementById('miniPlayer');
+      if (mp) mp.classList.add('visible');
+      showToast('▶ ' + title, 'success');
+    } catch(e2) { showToast('Error: ' + e2.message, 'error'); }
+  };
+
+  app.audio.addEventListener('canplay', onCanPlay, { once: true });
+  app.audio.addEventListener('error', onStreamError, { once: true });
+  app.audio.src = streamUrl;
+  app.audio.load();
 }
 
 // ── Al entrar a la pantalla Carpetas ─────────────────────────
