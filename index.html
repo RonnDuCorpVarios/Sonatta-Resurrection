@@ -4437,20 +4437,12 @@ async function playSongFromList(index) {
     if (!slotAcc || !slotAcc.token) {
       showToast(`Reconecta Google Drive #${songSlot + 1}`, 'error'); return;
     }
-    showToast('Cargando: ' + (song.title||song.name) + '...');
+    // FIX DELAY: streaming directo con token en query param — sin descarga blob
     try {
-      const tokenToUse = slotAcc.token;
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${song.driveId}?alt=media`, {
-        headers: { Authorization: 'Bearer ' + tokenToUse }
-      });
-      if (!res.ok) throw new Error('Sin acceso');
-      const blob = await res.blob();
-      // FIX memory leak: revocar blob URL anterior antes de crear uno nuevo
       if (app.audio.src && app.audio.src.startsWith('blob:')) {
         URL.revokeObjectURL(app.audio.src);
       }
-      const url = URL.createObjectURL(blob);
-      app.audio.src = url;
+      app.audio.src = `https://www.googleapis.com/drive/v3/files/${song.driveId}?alt=media&access_token=${encodeURIComponent(slotAcc.token)}`;
     } catch(e) { showToast('Error: ' + e.message, 'error'); return; }
   } else {
     app.audio.src = song.url || song.streamUrl || '';
@@ -5074,50 +5066,80 @@ function renderFolderContent({ folders, songs }) {
 
 // ── Reproducir canción desde el explorador ────────────────────
 async function playFolderSong(fileId, fileName, slot, index) {
+  // FIX: declarar app PRIMERO para evitar "Cannot access 'app' before initialization"
+  const app = window.SonattaApp;
+  if (!app) { showToast('App no inicializada', 'error'); return; }
+
   const acc = driveAccounts[slot];
   if (!acc || !acc.token) { showToast('Nube no conectada', 'error'); return; }
 
   const title = fileName.replace(/\.[^.]+$/, '');
-  showToast('Cargando: ' + title + '...');
+
+  const song = {
+    id: `gdrive_${slot}_${fileId}`,
+    driveId: fileId, driveSlot: slot,
+    title, name: fileName, artist: '', source: 'gdrive', coverUrl: null
+  };
 
   try {
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      { headers: { Authorization: 'Bearer ' + acc.token } }
-    );
-    if (!res.ok) throw new Error('Sin acceso al archivo');
-    const blob = await res.blob();
-    // FIX memory leak: revocar blob URL anterior antes de crear uno nuevo
+    // FIX DELAY: en lugar de descargar el blob completo (4-5s), usamos streaming directo.
+    // Creamos una URL autenticada via fetch con mode:'cors' y la convertimos a ObjectURL
+    // solo si el navegador no soporta el header Authorization en <audio src>.
+    // Estrategia: asignar src con token en query param para streaming inmediato.
+    const streamUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${encodeURIComponent(acc.token)}`;
+
+    // Revocar blob anterior si existía
     if (app.audio.src && app.audio.src.startsWith('blob:')) {
       URL.revokeObjectURL(app.audio.src);
     }
-    const url = URL.createObjectURL(blob);
 
-    const song = {
-      id: `gdrive_${slot}_${fileId}`,
-      driveId: fileId, driveSlot: slot,
-      title, name: fileName, artist: '', source: 'gdrive', coverUrl: null
-    };
-
-    const app = window.SonattaApp;
-    if (!app) return;
-    app.audio.src = url;
+    app.audio.src = streamUrl;
     app.currentSong = song;
-    app.audio.play().then(() => {
-      app.isPlaying = true;
-      updatePlayerUI(song);
-      updatePlayButtons(true);
-      updateSongsPlayer(song);
-      const mp = document.getElementById('miniPlayer');
-      if (mp) mp.classList.add('visible');
-      showToast('▶ ' + title, 'success');
-      // FIX: la clase usada era 'folder-dir' pero el renderizador genera '.folder-item[data-fid]'.
-      // Ahora usamos el selector correcto para contar carpetas y calcular el offset real.
-      document.querySelectorAll('#folderContent .folder-item').forEach((el, i) => {
-        const dirCount = document.querySelectorAll('#folderContent .folder-item[data-fid]').length;
-        el.classList.toggle('playing', i === index + dirCount);
+
+    // Intentar reproducción inmediata sin esperar descarga
+    const playPromise = app.audio.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        app.isPlaying = true;
+        updatePlayerUI(song);
+        updatePlayButtons(true);
+        updateSongsPlayer(song);
+        const mp = document.getElementById('miniPlayer');
+        if (mp) mp.classList.add('visible');
+        showToast('▶ ' + title, 'success');
+        document.querySelectorAll('#folderContent .folder-item').forEach((el, i) => {
+          const dirCount = document.querySelectorAll('#folderContent .folder-item[data-fid]').length;
+          el.classList.toggle('playing', i === index + dirCount);
+        });
+      }).catch(async (e) => {
+        // Fallback: si el streaming directo falla (CORS), descargar blob
+        console.warn('Streaming directo falló, usando blob fallback:', e.message);
+        showToast('Cargando: ' + title + '...');
+        try {
+          const res = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+            { headers: { Authorization: 'Bearer ' + acc.token } }
+          );
+          if (!res.ok) throw new Error('Sin acceso al archivo');
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          app.audio.src = url;
+          app.currentSong = song;
+          await app.audio.play();
+          app.isPlaying = true;
+          updatePlayerUI(song);
+          updatePlayButtons(true);
+          updateSongsPlayer(song);
+          const mp = document.getElementById('miniPlayer');
+          if (mp) mp.classList.add('visible');
+          showToast('▶ ' + title, 'success');
+          document.querySelectorAll('#folderContent .folder-item').forEach((el, i) => {
+            const dirCount = document.querySelectorAll('#folderContent .folder-item[data-fid]').length;
+            el.classList.toggle('playing', i === index + dirCount);
+          });
+        } catch(e2) { showToast('Error: ' + e2.message, 'error'); }
       });
-    }).catch(e => showToast('Error: ' + e.message, 'error'));
+    }
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
   }
